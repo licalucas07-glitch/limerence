@@ -44,8 +44,8 @@ Security and user privacy are fundamental to this project:
 ## 🚀 Live Demo
 
 Access the live web application here:  
-👉 **[https://YOUR-GITHUB-USERNAME.github.io/limerence/](https://YOUR-GITHUB-USERNAME.github.io/limerence/)**  
-*(Replace `YOUR-GITHUB-USERNAME` with your actual GitHub account name)*
+👉 **[[https://YOUR-GITHUB-USERNAME.github.io/limerence/](https://licalucas07-glitch.github.io/limerence/)]([https://YOUR-GITHUB-USERNAME.github.io/limerence/](https://licalucas07-glitch.github.io/limerence/))**  
+
 
 ---
 
