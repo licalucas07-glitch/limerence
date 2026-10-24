@@ -14,6 +14,7 @@
             --jade-glow: rgba(45, 212, 191, 0.25);
             --text-light: #f8fafc;
             --text-muted: #94a3b8;
+            --accent-rose: #f43f5e;
         }
 
         * {
@@ -242,6 +243,10 @@
             box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.4);
         }
 
+        .stat-card.alert {
+            border-left-color: var(--accent-rose);
+        }
+
         .stat-card h4 {
             color: var(--text-muted);
             font-size: 0.8rem;
@@ -260,6 +265,7 @@
         .stat-desc {
             font-size: 0.85rem;
             color: var(--text-muted);
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -551,11 +557,15 @@
             senderKeys.forEach(s => responseTimes[s] = []);
             let dailyInitiators = {};
             let lowEffortOpeners = {};
+            let doubleTexts = {};
             let callStats = {};
+            let wordCounts = {};
             senderKeys.forEach(s => {
                 dailyInitiators[s] = 0;
                 lowEffortOpeners[s] = 0;
+                doubleTexts[s] = 0;
                 callStats[s] = { total: 0, missed: 0, completed: 0 };
+                wordCounts[s] = [];
             });
 
             calls.forEach(c => {
@@ -582,15 +592,19 @@
                     lastDayStr = dayStr;
                 }
 
+                let words = msg.text.trim().split(/\s+/);
+                wordCounts[msg.sender].push(words.length);
+
                 let hour = msg.dateObj.getHours();
-                let wordCount = msg.text.trim().split(/\s+/).length;
-                if (hour >= 6 && hour < 10 && wordCount <= 5) {
+                if (hour >= 6 && hour < 10 && words.length <= 5) {
                     lowEffortOpeners[msg.sender] = (lowEffortOpeners[msg.sender] || 0) + 1;
                 }
 
                 if (i > 0) {
                     let prev = messages[i - 1];
-                    if (msg.sender !== prev.sender) {
+                    if (msg.sender === prev.sender) {
+                        doubleTexts[msg.sender]++;
+                    } else {
                         let diffMinutes = (msg.dateObj - prev.dateObj) / (1000 * 60);
                         if (diffMinutes > 0 && diffMinutes < 1440) {
                             responseTimes[msg.sender].push(diffMinutes);
@@ -606,5 +620,104 @@
 
             let totalDaysCount = activeDays.size || 1;
 
+            // Detect the exact week the energy shifted (biggest drop from previous week's moving average)
             let weeks = Object.keys(weeklyVolume).sort();
-            let
+            let peakWeek = "N/A";
+            let maxVol = 0;
+            let shiftWeek = "Stable / Consistent";
+            let maxDrop = 0;
+
+            for (let i = 0; i < weeks.length; i++) {
+                let w = weeks[i];
+                let vol = weeklyVolume[w];
+                if (vol > maxVol) {
+                    maxVol = vol;
+                    peakWeek = w;
+                }
+                if (i > 0) {
+                    let prevVol = weeklyVolume[weeks[i - 1]];
+                    let drop = prevVol - vol;
+                    // Detect significant drop (>35% reduction from previous week)
+                    if (drop > maxDrop && prevVol > 30 && (drop / prevVol) > 0.35) {
+                        maxDrop = drop;
+                        shiftWeek = `${w} (dropped from ${prevVol} to ${vol} msgs)`;
+                    }
+                }
+            }
+
+            statsGrid.innerHTML = '';
+
+            senderKeys.forEach(sender => {
+                let count = senders[sender] || 0;
+                let pct = totalMessages > 0 ? ((count / totalMessages) * 100).toFixed(1) : "0.0";
+                let starts = dailyInitiators[sender] || 0;
+                let startPct = ((starts / totalDaysCount) * 100).toFixed(1);
+                let breadcrumbs = lowEffortOpeners[sender] || 0;
+                let doubles = doubleTexts[sender] || 0;
+                let cTotal = callStats[sender] ? callStats[sender].total : 0;
+                let cMissed = callStats[sender] ? callStats[sender].missed : 0;
+                let cCompleted = callStats[sender] ? callStats[sender].completed : 0;
+
+                let avgWords = wordCounts[sender].length > 0 
+                    ? Math.round(wordCounts[sender].reduce((a, b) => a + b, 0) / wordCounts[sender].length) 
+                    : 0;
+
+                let avgLatencyMins = responseTimes[sender] && responseTimes[sender].length > 0 
+                    ? Math.round(responseTimes[sender].reduce((a, b) => a + b, 0) / responseTimes[sender].length) 
+                    : 0;
+                let latencyText = avgLatencyMins < 60 ? `${avgLatencyMins} mins` : `${(avgLatencyMins/60).toFixed(1)} hours`;
+
+                // Behavioral Attachment Pattern Tagging
+                let patternTag = "Balanced Engagement";
+                if (doubles > count * 0.15 && avgWords > 10) {
+                    patternTag = "Anxious Pattern (Higher double-texting & investment)";
+                } else if (avgLatencyMins > 120 && avgWords <= 6) {
+                    patternTag = "Avoidant Pattern (Delayed, minimal responses)";
+                }
+
+                statsGrid.innerHTML += `
+                    <div class="stat-card">
+                        <h4>Audit Profile (${sender})</h4>
+                        <div class="stat-value">${count.toLocaleString()} msgs (${pct}%)</div>
+                        <div class="stat-desc" style="margin-top:6px;">
+                            Started day first: <strong>${starts} times (${startPct}%)</strong><br>
+                            Avg Reply Time: <strong>${latencyText}</strong><br>
+                            Avg Message Length: <strong>${avgWords} words</strong><br>
+                            Double Texts Sent: <strong>${doubles}</strong><br>
+                            Low-Effort Morning Check-ins: <strong>${breadcrumbs}</strong><br>
+                            Calls: <strong>${cTotal}</strong> (${cCompleted} completed, ${cMissed} missed)<br>
+                            <span style="color: var(--jade-primary);">Style Dynamic: ${patternTag}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            statsGrid.innerHTML += `
+                <div class="stat-card alert">
+                    <h4>Exact Energy Shift Detected</h4>
+                    <div class="stat-value">${shiftWeek}</div>
+                    <div class="stat-desc">Pinpoints the exact week engagement and communication momentum sharply declined.</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Peak Energy Period</h4>
+                    <div class="stat-value">${peakWeek}</div>
+                    <div class="stat-desc">Highest activity recorded at <strong>${maxVol}</strong> messages in this window.</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Timeframe Scope</h4>
+                    <div class="stat-value">${totalDaysCount} Active Days</div>
+                    <div class="stat-desc">Filtered scope covers <strong>${messages.length.toLocaleString()} messages</strong> & <strong>${calls.length} calls</strong>.</div>
+                </div>
+            `;
+        }
+
+        function getWeekNumber(d) {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+            var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+            return weekNo;
+        }
+    </script>
+</body>
+</html>
