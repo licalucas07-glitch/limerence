@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>unlinked: Limerence | Relationship Clarity Audit</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#0f172a',
+                            card: '#1e293b',
+                            accent: '#f43f5e',
+                            rose: '#fb7185',
+                            gold: '#fbbf24',
+                            goldlight: '#fef3c7',
+                            muted: '#94a3b8'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .gold-gradient-text {
+            background: linear-gradient(135deg, #fbbf24 0%, #fb7185 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-glow {
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-rose-500 selection:text-white">
+
+    <!-- Header / Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-rose-500 to-amber-500 flex items-center justify-center font-bold text-slate-900 shadow-md">
+                    uL
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                        unlinked <span class="text-xs px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase tracking-widest font-semibold">Limerence</span>
+                    </h1>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700">
+                <span>🔒 100% Client-Side Local Processing</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-5xl mx-auto px-4 py-8 flex-grow w-full space-y-8">
+
+        <!-- Hero Banner -->
+        <section class="text-center space-y-3 py-4">
+            <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight">
+                Turn romantic obsession into <span class="gold-gradient-text">objective reality</span>.
+            </h2>
+            <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base">
+                Stop over-analyzing mixed signals. Upload your WhatsApp chat log to audit reciprocity, detect low-effort patterns, and uncover the exact week the energy shifted.
+            </p>
+        </section>
+
+        <!-- Input & Configuration Card -->
+        <section class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 card-glow space-y-6">
+            
+            <!-- Upload Area -->
+            <div>
+                <label class="block text-sm font-semibold text-slate-300 mb-2">1. Upload WhatsApp Export File (.txt)</label>
+                <div id="dropZone" class="border-2 border-dashed border-slate-600 hover:border-rose-500/50 bg-slate-900/50 rounded-xl p-8 text-center transition cursor-pointer flex flex-col items-center justify-center space-y-3">
+                    <svg class="w-10 h-10 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 0115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <div>
+                        <p class="text-sm font-medium text-slate-200">Drag and drop your WhatsApp <code class="bg-slate-800 px-1.5 py-0.5 rounded text-rose-400">_chat.txt</code> file here</p>
+                        <p class="text-xs text-slate-500 mt-1">Export without media from WhatsApp settings.</p>
+                    </div>
+                    <input type="file" id="fileInput" accept=".txt" class="hidden">
+                    <button type="button" onclick="document.getElementById('fileInput').click()" class="mt-2 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-lg font-medium transition">
+                        Select File
+                    </button>
+                </div>
+            </div>
+
+            <!-- Demo Data Button -->
+            <div class="flex items-center justify-between border-t border-slate-700/60 pt-4 flex-wrap gap-3">
+                <div class="text-xs text-slate-400">
+                    Don't have a chat file ready? Test the full audit engine immediately:
+                </div>
+                <button type="button" id="demoBtn" class="text-xs bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-slate-950 font-bold px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5">
+                    <span>⚡ Try with Sample Chat</span>
+                </button>
+            </div>
+
+            <!-- Date Range Filter Options -->
+            <div id="filterSection" class="border-t border-slate-700/60 pt-4 space-y-3 hidden">
+                <label class="block text-sm font-semibold text-slate-300">2. Select Audit Timeframe</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <button type="button" data-filter="full" class="filter-btn bg-rose-500 text-white font-semibold py-2 px-3 rounded-lg border border-rose-500 transition">
+                        Full Chat
+                    </button>
+                    <button type="button" data-filter="honeymoon" class="filter-btn bg-slate-900/60 text-slate-300 hover:bg-slate-700 py-2 px-3 rounded-lg border border-slate-700 transition">
+                        First 60 Days
+                    </button>
+                    <button type="button" data-filter="recent" class="filter-btn bg-slate-900/60 text-slate-300 hover:bg-slate-700 py-2 px-3 rounded-lg border border-slate-700 transition">
+                        Last 60 Days
+                    </button>
+                    <button type="button" data-filter="custom" class="filter-btn bg-slate-900/60 text-slate-300 hover:bg-slate-700 py-2 px-3 rounded-lg border border-slate-700 transition">
+                        Custom Range
+                    </button>
+                </div>
+
+                <!-- Custom Range Inputs -->
+                <div id="customDateInputs" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 hidden">
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">Start Date</label>
+                        <input type="date" id="startDate" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg p-2 w-full focus:outline-none focus:border-rose-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 block mb-1">End Date</label>
+                        <input type="date" id="endDate" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg p-2 w-full focus:outline-none focus:border-rose-500">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading Indicator -->
+        <div id="loadingState" class="hidden text-center py-12 space-y-3">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-2 border-rose-500 border-t-transparent"></div>
+            <p class="text-sm text-slate-400">Parsing timeline, calculating response lags, and analyzing effort ratios...</p>
+        </div>
+
+        <!-- Audit Dashboard Output (Hidden by Default) -->
+        <div id="dashboard" class="space-y-8 hidden">
+
+            <!-- Executive Summary Header -->
+            <section class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/80 rounded-2xl p-6 card-glow space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/60 pb-4">
+                    <div>
+                        <span class="text-xs font-semibold text-rose-400 uppercase tracking-widest">Audit Executive Summary</span>
+                        <h3 class="text-2xl font-bold text-white mt-1" id="participantsHeader">Person A vs Person B</h3>
+                        <p class="text-xs text-slate-400 mt-0.5" id="dateSpanText">Analyzing 0 messages across 0 days</p>
+                    </div>
+                    <div class="text-right bg-slate-900/80 px-4 py-3 rounded-xl border border-slate-700">
+                        <span class="text-xs text-slate-400 block">Limerence Risk Index</span>
+                        <span class="text-xl font-extrabold text-amber-400" id="limerenceScore">HIGH (78%)</span>
+                    </div>
+                </div>
+
+                <!-- Core Verdict Box -->
+                <div id="verdictCallout" class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-200 text-sm leading-relaxed">
+                    <!-- Dynamic verdict text will be injected here -->
+                </div>
+            </section>
+
+            <!-- Key Metric Grid -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <!-- Daily Conversation Starters -->
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-sm font-semibold text-slate-200">Daily Conversation Starter</h4>
+                        <span class="text-xs text-slate-400">Who reaches out first?</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-slate-300" id="p1NameInit">User</span>
+                                <span class="font-bold text-rose-400" id="p1InitVal">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-900 rounded-full h-2">
+                                <div id="p1InitBar" class="bg-rose-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-slate-300" id="p2NameInit">Partner</span>
+                                <span class="font-bold text-slate-400" id="p2InitVal">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-900 rounded-full h-2">
+                                <div id="p2InitBar" class="bg-slate-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400 pt-1" id="initNote">Grouped by days or 6+ hour silence gaps.</p>
+                </div>
+
+                <!-- Average Reply Delay -->
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-sm font-semibold text-slate-200">Average Response Delay</h4>
+                        <span class="text-xs text-slate-400">Time between replies</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 text-center py-2">
+                        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                            <span class="text-xs text-slate-400 block" id="p1NameLag">User</span>
+                            <span class="text-lg font-bold text-rose-400" id="p1LagVal">0m</span>
+                        </div>
+                        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                            <span class="text-xs text-slate-400 block" id="p2NameLag">Partner</span>
+                            <span class="text-lg font-bold text-amber-400" id="p2LagVal">0m</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400" id="lagRatioNote">Calculating response gap balance...</p>
+                </div>
+
+                <!-- Low Effort Morning Opener -->
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-sm font-semibold text-slate-200">The "Breadcrumb" Morning Opener</h4>
+                        <span class="text-xs text-slate-400">Low-effort texts</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                            <span class="text-xs text-slate-300">Morning Openers Identified</span>
+                            <span class="text-sm font-bold text-amber-400" id="morningOpenerCount">0</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
+                            <span class="text-xs text-slate-300">Abandonment Rate (No Follow-up)</span>
+                            <span class="text-sm font-bold text-rose-400" id="morningAbandonRate">0%</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400" id="morningNote">Tracks "Good morning / how did you sleep" texts sent between 6am-10am where sender went quiet after.</p>
+                </div>
+
+                <!-- Topic Carrying & Double Messaging -->
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-sm font-semibold text-slate-200">Conversational Investment</h4>
+                        <span class="text-xs text-slate-400">Word length & double-texts</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 text-center py-1">
+                        <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50">
+                            <span class="text-[11px] text-slate-400 block" id="p1NameEffort">User Avg Words</span>
+                            <span class="text-base font-bold text-slate-200" id="p1WordsVal">0</span>
+                        </div>
+                        <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50">
+                            <span class="text-[11px] text-slate-400 block" id="p2NameEffort">Partner Avg Words</span>
+                            <span class="text-base font-bold text-slate-200" id="p2WordsVal">0</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-xs pt-1 border-t border-slate-700/50">
+                        <span class="text-slate-400">Double Texts Sent:</span>
+                        <span class="text-slate-200 font-semibold" id="doubleTextRatio">User: 0 | Partner: 0</span>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Turning Point & Before/After Comparison -->
+            <section class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                        <h4 class="text-base font-bold text-white">The "Shift" Audit: First 60 Days vs Recent Dynamics</h4>
+                        <p class="text-xs text-slate-400">Detecting the exact week effort began to decay.</p>
+                    </div>
+                    <span id="shiftBadge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        Shift Detected
+                    </span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="p-3 rounded-l-lg">Metric</th>
+                                <th class="p-3">Honeymoon Phase (Early)</th>
+                                <th class="p-3">Recent Dynamics (Late)</th>
+                                <th class="p-3 rounded-r-lg">Change</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700/50" id="shiftTableBody">
+                            <!-- Dynamic rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Call Logs & Silent Streaks -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 flex items-center justify-between">
+                    <div>
+                        <span class="text-xs text-slate-400 block">Total Call Logs Detected</span>
+                        <span class="text-2xl font-bold text-white mt-1" id="callCountVal">0</span>
+                        <span class="text-xs text-slate-500 block mt-0.5" id="callSubNote">Voice and video call events</span>
+                    </div>
+                    <div class="h-12 w-12 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-rose-400 font-bold text-lg">
+                        📞
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 flex items-center justify-between">
+                    <div>
+                        <span class="text-xs text-slate-400 block">Longest Silent Streak</span>
+                        <span class="text-2xl font-bold text-amber-400 mt-1" id="silentStreakVal">0 hours</span>
+                        <span class="text-xs text-slate-500 block mt-0.5" id="silentStreakSub">Maximum gap without any texts</span>
+                    </div>
+                    <div class="h-12 w-12 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-amber-400 font-bold text-lg">
+                        ⏳
+                    </div>
+                </div>
+            </section>
+
+            <!-- The 'unlinked' Ecosystem Bridge Banner -->
+            <section class="bg-gradient-to-r from-rose-950/60 via-slate-900 to-amber-950/40 border border-rose-500/30 rounded-2xl p-6 sm:p-8 card-glow text-center space-y-4">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold uppercase tracking-widest">
+                    Step Two: Reclaiming Your Peace
+                </div>
+                <h3 class="text-2xl sm:text-3xl font-extrabold text-white">
+                    Clarity is step one. Healing is step two.
+                </h3>
+                <p class="text-slate-300 max-w-xl mx-auto text-xs sm:text-sm leading-relaxed">
+                    Seeing the numbers removes the illusion of limerence. When you are ready to break the cycle of over-analyzing and step into structured emotional freedom, start your recovery with <strong class="text-rose-400">unlinked</strong>.
+                </p>
+                <div class="pt-2">
+                    <a href="#" onclick="alert('Redirecting to the main unlinked 90-day recovery application.'); return false;" class="inline-block bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-slate-950 font-bold text-sm px-6 py-3 rounded-xl shadow-lg transition transform hover:-translate-y-0.5">
+                        Begin Your 90-Day Journey with unlinked →
+                    </a>
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-950 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-5xl mx-auto px-4 space-y-2">
+            <p>unlinked: Limerence &copy; 2026. All rights reserved. 100% private, client-side relationship analytics.</p>
+            <p class="text-slate-600">No chat logs, names, or messages are ever transmitted or saved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Parser & Logic -->
+    <script>
+        // Sample Chat Data for instant demo
+        const SAMPLE_CHAT_DATA = `[10/01/26, 08:15:22] Sarah: Good morning! How did you sleep?
+[10/01/26, 11:45:10] Mark: Good. Busy with work.
+[10/01/26, 11:46:00] Sarah: Oh okay, hope your meetings go well today! Let me know if you want to catch up later.
+[10/01/26, 19:30:15] Sarah: Hey, did you end up finishing that project?
+[10/01/26, 22:10:04] Mark: Yeah finished.
+[10/01/26, 22:11:30] Sarah: Awesome! Voice call
+[10/01/26, 22:12:00] Mark: Can't talk right now.
+[11/01/26, 08:30:00] Sarah: Good morning! Have a great Tuesday!
+[11/01/26, 15:20:10] Mark: Thanks.
+[11/01/26, 15:22:00] Sarah: Do you have plans this weekend? Was thinking we could try that new Italian place down town.
+[11/01/26, 15:23:10] Sarah: Or we could just order in if you are tired!
+[11/01/26, 21:05:44] Mark: Not sure yet about weekend.
+[12/01/26, 09:10:00] Sarah: Morning! Hope today is smoother for you.
+[12/01/26, 18:40:12] Sarah: Hey, everything ok? Haven't heard from you all day.
+[13/01/26, 02:15:00] Mark: Yeah fine. Just tired.
+[13/01/26, 08:00:10] Sarah: Good morning! Get some rest today!
+[13/01/26, 19:10:00] Mark: k
+[14/01/26, 10:00:00] Sarah: Hey! Are we still on for dinner on Friday?
+[14/01/26, 23:45:10] Mark: Might have to raincheck.
+[15/01/26, 08:05:00] Sarah: Oh okay, no worries. Let me know when you are free next week!`;
+
+        // State Store
+        let globalRawMessages = [];
+        let globalParticipants = [];
+        let currentFilter = 'full';
+
+        // DOM Element Cache
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const demoBtn = document.getElementById('demoBtn');
+        const filterSection = document.getElementById('filterSection');
+        const loadingState = document.getElementById('loadingState');
+        const dashboard = document.getElementById('dashboard');
+        const customDateInputs = document.getElementById('customDateInputs');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+
+        // Event Listeners
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-rose-500'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-rose-500'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-rose-500');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        demoBtn.addEventListener('click', () => {
+            processChatText(SAMPLE_CHAT_DATA);
+        });
+
+        // Filter button listeners
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-btn').forEach(b => {
+                    b.classList.remove('bg-rose-500', 'text-white');
+                    b.classList.add('bg-slate-900/60', 'text-slate-300');
+                });
+                e.target.classList.remove('bg-slate-900/60', 'text-slate-300');
+                e.target.classList.add('bg-rose-500', 'text-white');
+
+                currentFilter = e.target.getAttribute('data-filter');
+                if (currentFilter === 'custom') {
+                    customDateInputs.classList.remove('hidden');
+                } else {
+                    customDateInputs.classList.add('hidden');
+                    runAudit();
+                }
+            });
+        });
+
+        startDateInput.addEventListener('change', runAudit);
+        endDateInput.addEventListener('change', runAudit);
+
+        // File Handler
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => processChatText(e.target.result);
+            reader.readAsText(file);
+        }
+
+        // WhatsApp Text Parser Engine
+        function parseWhatsAppText(text) {
+            const lines = text.split('\n');
+            const messages = [];
+            
+            // Regex patterns for various WhatsApp export formats
+            // Format 1: [DD/MM/YY, HH:MM:SS] Name: Message
+            // Format 2: MM/DD/YY, HH:MM - Name: Message
+            // Format 3: DD/MM/YYYY, HH:MM - Name: Message
+            const regexStandard = /^(?:\[?(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AP]M)?)\]?)\s+(?:-\s+)?([^:]+):\s+(.*)$/i;
+
+            let currentMsg = null;
+
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+
+                const match = line.match(regexStandard);
+                if (match) {
+                    if (currentMsg) messages.push(currentMsg);
+
+                    const dateStr = match[1];
+                    const timeStr = match[2];
+                    const sender = match[3].trim();
+                    const content = match[4].trim();
+
+                    const timestamp = parseTimestamp(dateStr, timeStr);
+
+                    currentMsg = {
+                        timestamp,
+                        dateObj: timestamp ? new Date(timestamp) : new Date(),
+                        sender,
+                        content,
+                        isCall: content.toLowerCase().includes('voice call') || content.toLowerCase().includes('video call') || content.toLowerCase().includes('missed call')
+                    };
+                } else if (currentMsg) {
+                    // Multi-line message continuation
+                    currentMsg.content += ' ' + line;
+                }
+            }
+            if (currentMsg) messages.push(currentMsg);
+
+            return messages;
+        }
+
+        // Helper to parse dates robustly
+        function parseTimestamp(dateStr, timeStr) {
+            try {
+                const dateParts = dateStr.split(/[\/\.-]/);
+                let day, month, year;
+
+                if (dateParts[0].length === 4) {
+                    // YYYY-MM-DD
+                    year = parseInt(dateParts[0]);
+                    month = parseInt(dateParts[1]) - 1;
+                    day = parseInt(dateParts[2]);
+                } else {
+                    // Default assume DD/MM/YY or MM/DD/YY
+                    day = parseInt(dateParts[0]);
+                    month = parseInt(dateParts[1]) - 1;
+                    year = parseInt(dateParts[2]);
+                    if (year < 100) year += 2000;
+                }
+
+                // Handle time
+                let hours = 0, minutes = 0, seconds = 0;
+                const isPM = /PM/i.test(timeStr);
+                const isAM = /AM/i.test(timeStr);
+                const cleanTime = timeStr.replace(/(AM|PM)/i, '').trim();
+                const timeParts = cleanTime.split(':');
+
+                hours = parseInt(timeParts[0]);
+                minutes = parseInt(timeParts[1]) || 0;
+                seconds = parseInt(timeParts[2]) || 0;
+
+                if (isPM && hours < 12) hours += 12;
+                if (isAM && hours === 12) hours = 0;
+
+                const d = new Date(year, month, day, hours, minutes, seconds);
+                return d.getTime();
+            } catch (e) {
+                return Date.now();
+            }
+        }
+
+        // Main Process Trigger
+        function processChatText(text) {
+            loadingState.classList.remove('hidden');
+            dashboard.classList.add('hidden');
+
+            setTimeout(() => {
+                globalRawMessages = parseWhatsAppText(text);
+
+                if (globalRawMessages.length === 0) {
+                    alert('Could not parse any valid messages. Please check your WhatsApp export text format.');
+                    loadingState.classList.add('hidden');
+                    return;
+                }
+
+                // Identify participants
+                const senderCounts = {};
+                globalRawMessages.forEach(m => {
+                    senderCounts[m.sender] = (senderCounts[m.sender] || 0) + 1;
+                });
+
+                // Top 2 participants
+                globalParticipants = Object.keys(senderCounts).sort((a, b) => senderCounts[b] - senderCounts[a]).slice(0, 2);
+
+                if (globalParticipants.length < 2) {
+                    alert('The chat export needs at least two distinct participants.');
+                    loadingState.classList.add('hidden');
+                    return;
+                }
+
+                filterSection.classList.remove('hidden');
+                loadingState.classList.add('hidden');
+                dashboard.classList.remove('hidden');
+
+                runAudit();
+            }, 400);
+        }
+
+        // Filter and calculate audit metrics
+        function runAudit() {
+            if (!globalRawMessages.length) return;
+
+            let filtered = [...globalRawMessages];
+            const p1 = globalParticipants[0]; // Assumed primary user or top sender
+            const p2 = globalParticipants[1];
+
+            // Apply timeframe filters
+            const minTime = Math.min(...filtered.map(m => m.timestamp));
+            const maxTime = Math.max(...filtered.map(m => m.timestamp));
+            const totalSpanDays = Math.max(1, Math.round((maxTime - minTime) / (1000 * 60 * 60 * 24)));
+
+            if (currentFilter === 'honeymoon') {
+                const cutoff = minTime + (60 * 24 * 60 * 60 * 1000);
+                filtered = filtered.filter(m => m.timestamp <= cutoff);
+            } else if (currentFilter === 'recent') {
+                const cutoff = maxTime - (60 * 24 * 60 * 60 * 1000);
+                filtered = filtered.filter(m => m.timestamp >= cutoff);
+            } else if (currentFilter === 'custom') {
+                const startVal = startDateInput.value ? new Date(startDateInput.value).getTime() : minTime;
+                const endVal = endDateInput.value ? new Date(endDateInput.value).getTime() + (86400000 - 1) : maxTime;
+                filtered = filtered.filter(m => m.timestamp >= startVal && m.timestamp <= endVal);
+            }
+
+            if (filtered.length === 0) {
+                alert('No messages found in the selected date range.');
+                return;
+            }
+
+            // Calculations
+            const stats = calculateStats(filtered, p1, p2);
+            renderDashboard(stats, p1, p2, filtered.length, totalSpanDays);
+        }
+
+        // Core Calculation Engine
+        function calculateStats(messages, p1, p2) {
+            let p1Starts = 0;
+            let p2Starts = 0;
+
+            let p1Delays = [];
+            let p2Delays = [];
+
+            let p1Words = 0, p1Count = 0;
+            let p2Words = 0, p2Count = 0;
+
+            let p1DoubleTexts = 0;
+            let p2DoubleTexts = 0;
+
+            let morningOpeners = 0;
+            let morningAbandoned = 0;
+
+            let callsCount = 0;
+            let maxSilentStreakMs = 0;
+
+            let lastMsg = null;
+            let lastDayStr = '';
+
+            for (let i = 0; i < messages.length; i++) {
+                const m = messages[i];
+                const sender = m.sender;
+                const text = m.content;
+
+                if (m.isCall) callsCount++;
+
+                // Word counts
+                const wordLen = text.split(/\s+/).length;
+                if (sender === p1) { p1Words += wordLen; p1Count++; }
+                else if (sender === p2) { p2Words += wordLen; p2Count++; }
+
+                // Double texts & reply delays
+                if (lastMsg) {
+                    const timeDiffMs = m.timestamp - lastMsg.timestamp;
+
+                    if (timeDiffMs > maxSilentStreakMs) {
+                        maxSilentStreakMs = timeDiffMs;
+                    }
+
+                    if (lastMsg.sender === sender) {
+                        if (sender === p1) p1DoubleTexts++;
+                        if (sender === p2) p2DoubleTexts++;
+                    } else {
+                        // Response lag
+                        const minutes = timeDiffMs / (1000 * 60);
+                        if (minutes > 0 && minutes < 1440) { // filter outliers > 24h for lag averages
+                            if (sender === p1) p1Delays.push(minutes);
+                            if (sender === p2) p2Delays.push(minutes);
+                        }
+                    }
+                }
+
+                // Daily Conversation Starter Check (6+ hour gap or calendar day change)
+                const currentDayStr = m.dateObj.toDateString();
+                const isNewDay = currentDayStr !== lastDayStr;
+                const isLongGap = lastMsg && (m.timestamp - lastMsg.timestamp) > (6 * 60 * 60 * 1000);
+
+                if (isNewDay || isLongGap) {
+                    if (sender === p1) p1Starts++;
+                    if (sender === p2) p2Starts++;
+                    lastDayStr = currentDayStr;
+
+                    // Low Effort Morning Opener Check (6am - 10am, < 6 words)
+                    const hour = m.dateObj.getHours();
+                    if (hour >= 6 && hour <= 10 && wordLen < 6) {
+                        const lower = text.toLowerCase();
+                        if (lower.includes('morning') || lower.includes('sleep') || lower.includes('hey') || lower.includes('sup')) {
+                            morningOpeners++;
+                            // Check if sender follows up or abandons
+                            let senderFollowedUp = false;
+                            for (let j = i + 1; j < Math.min(i + 5, messages.length); j++) {
+                                if (messages[j].sender === sender) {
+                                    senderFollowedUp = true;
+                                    break;
+                                }
+                            }
+                            if (!senderFollowedUp) morningAbandoned++;
+                        }
+                    }
+                }
+
+                lastMsg = m;
+            }
+
+            const totalStarts = Math.max(1, p1Starts + p2Starts);
+            const p1InitPct = Math.round((p1Starts / totalStarts) * 100);
+            const p2InitPct = 100 - p1InitPct;
+
+            const avgP1Lag = p1Delays.length ? Math.round(p1Delays.reduce((a, b) => a + b, 0) / p1Delays.length) : 0;
+            const avgP2Lag = p2Delays.length ? Math.round(p2Delays.reduce((a, b) => a + b, 0) / p2Delays.length) : 0;
+
+            const avgP1Words = p1Count ? Math.round(p1Words / p1Count) : 0;
+            const avgP2Words = p2Count ? Math.round(p2Words / p2Count) : 0;
+
+            const abandonmentRate = morningOpeners ? Math.round((morningAbandoned / morningOpeners) * 100) : 0;
+
+            return {
+                p1InitPct, p2InitPct,
+                avgP1Lag, avgP2Lag,
+                avgP1Words, avgP2Words,
+                p1DoubleTexts, p2DoubleTexts,
+                morningOpeners, abandonmentRate,
+                callsCount, maxSilentStreakMs
+            };
+        }
+
+        // Render Dashboard Output
+        function renderDashboard(stats, p1, p2, totalMsgs, totalDays) {
+            document.getElementById('participantsHeader').innerText = `${p1} vs ${p2}`;
+            document.getElementById('dateSpanText').innerText = `Auditing ${totalMsgs} messages across ~${totalDays} days`;
+
+            // Daily Starters
+            document.getElementById('p1NameInit').innerText = p1;
+            document.getElementById('p1InitVal').innerText = stats.p1InitPct + '%';
+            document.getElementById('p1InitBar').style.width = stats.p1InitPct + '%';
+
+            document.getElementById('p2NameInit').innerText = p2;
+            document.getElementById('p2InitVal').innerText = stats.p2InitPct + '%';
+            document.getElementById('p2InitBar').style.width = stats.p2InitPct + '%';
+
+            // Response Lag
+            document.getElementById('p1NameLag').innerText = p1;
+            document.getElementById('p1LagVal').innerText = formatMinutes(stats.avgP1Lag);
+
+            document.getElementById('p2NameLag').innerText = p2;
+            document.getElementById('p2LagVal').innerText = formatMinutes(stats.avgP2Lag);
+
+            document.getElementById('lagRatioNote').innerText = 
+                stats.avgP1Lag < stats.avgP2Lag 
+                    ? `${p2} takes ~${Math.round(stats.avgP2Lag / Math.max(1, stats.avgP1Lag))}x longer to reply on average.` 
+                    : `${p1} takes ~${Math.round(stats.avgP1Lag / Math.max(1, stats.avgP2Lag))}x longer to reply on average.`;
+
+            // Morning Openers
+            document.getElementById('morningOpenerCount').innerText = stats.morningOpeners;
+            document.getElementById('morningAbandonRate').innerText = stats.abandonmentRate + '%';
+
+            // Effort & Double Texting
+            document.getElementById('p1NameEffort').innerText = `${p1} Avg Words`;
+            document.getElementById('p1WordsVal').innerText = stats.avgP1Words;
+
+            document.getElementById('p2NameEffort').innerText = `${p2} Avg Words`;
+            document.getElementById('p2WordsVal').innerText = stats.avgP2Words;
+
+            document.getElementById('doubleTextRatio').innerText = `${p1}: ${stats.p1DoubleTexts} | ${p2}: ${stats.p2DoubleTexts}`;
+
+            // Calls & Silent Streaks
+            document.getElementById('callCountVal').innerText = stats.callsCount;
+            const streakHours = Math.round(stats.maxSilentStreakMs / (1000 * 60 * 60));
+            document.getElementById('silentStreakVal').innerText = streakHours > 24 ? `${Math.round(streakHours/24)} days` : `${streakHours} hours`;
+
+            // Limerence Score Calculation
+            let limerenceScoreNum = 0;
+            if (stats.p1InitPct > 70) limerenceScoreNum += 30;
+            if (stats.avgP2Lag > stats.avgP1Lag * 2) limerenceScoreNum += 25;
+            if (stats.p1DoubleTexts > stats.p2DoubleTexts * 2) limerenceScoreNum += 20;
+            if (stats.abandonmentRate > 50) limerenceScoreNum += 25;
+
+            const scoreElem = document.getElementById('limerenceScore');
+            const verdictCallout = document.getElementById('verdictCallout');
+
+            if (limerenceScoreNum >= 65) {
+                scoreElem.innerText = `HIGH RISK (${limerenceScoreNum}%)`;
+                scoreElem.className = "text-xl font-extrabold text-rose-500";
+                verdictCallout.innerHTML = `
+                    <strong class="text-rose-400 block mb-1">⚠️ Limerence Pattern Detected</strong>
+                    The communication data reflects a highly asymmetrical dynamic. <strong>${p1}</strong> carries <strong>${stats.p1InitPct}%</strong> of daily conversation starters while <strong>${p2}</strong> responds with significantly longer delay times and lower effort. This points to one-sided emotional investment rather than mutual connection.
+                `;
+            } else if (limerenceScoreNum >= 35) {
+                scoreElem.innerText = `MODERATE (${limerenceScoreNum}%)`;
+                scoreElem.className = "text-xl font-extrabold text-amber-400";
+                verdictCallout.innerHTML = `
+                    <strong class="text-amber-400 block mb-1">⚡ Noticeable Reciprocity Imbalance</strong>
+                    Communication effort is somewhat unbalanced. While engagement exists, one party is carrying more of the conversational momentum and initiating contact more frequently.
+                `;
+            } else {
+                scoreElem.innerText = `LOW / BALANCED (${limerenceScoreNum}%)`;
+                scoreElem.className = "text-xl font-extrabold text-emerald-400";
+                verdictCallout.innerHTML = `
+                    <strong class="text-emerald-400 block mb-1">✅ Balanced Reciprocity</strong>
+                    Response delays and conversation initiations are relatively balanced between both parties, indicating mutual investment and healthy flow.
+                `;
+            }
+
+            // Before & After Shift Table
+            renderShiftTable(p1, p2);
+        }
+
+        // Render Shift Table
+        function renderShiftTable(p1, p2) {
+            const tableBody = document.getElementById('shiftTableBody');
+            
+            const minTime = Math.min(...globalRawMessages.map(m => m.timestamp));
+            const maxTime = Math.max(...globalRawMessages.map(m => m.timestamp));
+            const cutoff = minTime + (60 * 24 * 60 * 60 * 1000);
+
+            const earlyMsgs = globalRawMessages.filter(m => m.timestamp <= cutoff);
+            const lateMsgs = globalRawMessages.filter(m => m.timestamp > cutoff);
+
+            if (lateMsgs.length < 10) {
+                tableBody.innerHTML = `<tr><td colspan="4" class="p-3 text-slate-500 text-center">Not enough extended chat history to compute a 60-day shift.</td></tr>`;
+                return;
+            }
+
+            const earlyStats = calculateStats(earlyMsgs, p1, p2);
+            const lateStats = calculateStats(lateMsgs, p1, p2);
+
+            tableBody.innerHTML = `
+                <tr>
+                    <td class="p-3 font-medium text-slate-200">Daily Initiation (${p1})</td>
+                    <td class="p-3 text-slate-300">${earlyStats.p1InitPct}%</td>
+                    <td class="p-3 text-slate-300">${lateStats.p1InitPct}%</td>
+                    <td class="p-3 font-bold ${lateStats.p1InitPct > earlyStats.p1InitPct ? 'text-rose-400' : 'text-emerald-400'}">
+                        ${lateStats.p1InitPct > earlyStats.p1InitPct ? '+' : ''}${lateStats.p1InitPct - earlyStats.p1InitPct}%
+                    </td>
+                </tr>
+                <tr>
+                    <td class="p-3 font-medium text-slate-200">Response Lag (${p2})</td>
+                    <td class="p-3 text-slate-300">${formatMinutes(earlyStats.avgP2Lag)}</td>
+                    <td class="p-3 text-slate-300">${formatMinutes(lateStats.avgP2Lag)}</td>
+                    <td class="p-3 font-bold ${lateStats.avgP2Lag > earlyStats.avgP2Lag ? 'text-rose-400' : 'text-emerald-400'}">
+                        ${lateStats.avgP2Lag > earlyStats.avgP2Lag ? '+' : ''}${lateStats.avgP2Lag - earlyStats.avgP2Lag}m
+                    </td>
+                </tr>
+                <tr>
+                    <td class="p-3 font-medium text-slate-200">Morning Abandonment Rate</td>
+                    <td class="p-3 text-slate-300">${earlyStats.abandonmentRate}%</td>
+                    <td class="p-3 text-slate-300">${lateStats.abandonmentRate}%</td>
+                    <td class="p-3 font-bold ${lateStats.abandonmentRate > earlyStats.abandonmentRate ? 'text-rose-400' : 'text-emerald-400'}">
+                        ${lateStats.abandonmentRate > earlyStats.abandonmentRate ? '+' : ''}${lateStats.abandonmentRate - earlyStats.abandonmentRate}%
+                    </td>
+                </tr>
+            `;
+        }
+
+        // Format minutes into human readable text
+        function formatMinutes(mins) {
+            if (mins < 60) return `${mins}m`;
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return `${h}h ${m}m`;
+        }
+    </script>
+</body>
+</html>
