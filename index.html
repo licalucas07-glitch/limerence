@@ -36,7 +36,7 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 900px;
             width: 100%;
             text-align: center;
         }
@@ -60,16 +60,17 @@
             line-height: 1.5;
         }
 
-        /* Dropzone Styling matching the Jade/Mint theme */
+        /* Dropzone Styling */
         .dropzone {
             background-color: var(--card-bg);
             border: 2px dashed var(--jade-primary);
             border-radius: 16px;
-            padding: 50px 30px;
+            padding: 40px 30px;
             transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            margin-bottom: 30px;
         }
 
         .dropzone:hover, .dropzone.dragover {
@@ -79,30 +80,30 @@
         }
 
         .dropzone-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
+            font-size: 42px;
+            margin-bottom: 12px;
         }
 
         .dropzone h3 {
-            font-size: 1.25rem;
-            margin-bottom: 8px;
+            font-size: 1.2rem;
+            margin-bottom: 6px;
             color: var(--text-light);
         }
 
         .dropzone p {
             color: var(--text-muted);
-            font-size: 0.95rem;
-            margin-bottom: 24px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
         }
 
         .btn {
             background-color: var(--jade-primary);
             color: #070b14;
             border: none;
-            padding: 12px 30px;
-            font-size: 1rem;
+            padding: 10px 26px;
+            font-size: 0.95rem;
             font-weight: 700;
-            border-radius: 10px;
+            border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
             box-shadow: 0 4px 12px var(--jade-glow);
@@ -134,48 +135,62 @@
         /* Results Panel */
         #results-container {
             display: none;
-            margin-top: 30px;
+            text-align: left;
+        }
+
+        .results-header {
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 30px;
-            text-align: left;
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 20px;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
         }
 
-        #results-container h2 {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
+        .results-header h2 {
+            font-size: 1.4rem;
+            margin-bottom: 6px;
             color: var(--text-light);
+        }
+
+        .results-header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
             gap: 16px;
-            margin-top: 20px;
         }
 
         .stat-card {
-            background: var(--bg-dark);
-            padding: 18px;
-            border-radius: 12px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 14px;
             border: 1px solid var(--card-border);
             border-left: 4px solid var(--jade-primary);
+            box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.4);
         }
 
         .stat-card h4 {
             color: var(--text-muted);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
 
-        .stat-card p {
-            font-size: 1.6rem;
+        .stat-value {
+            font-size: 1.5rem;
             font-weight: 800;
             color: var(--text-light);
+            margin-bottom: 4px;
+        }
+
+        .stat-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
         }
     </style>
 </head>
@@ -201,10 +216,12 @@
 
         <!-- Results Display -->
         <div id="results-container">
-            <h2>Audit Results Summary</h2>
-            <p id="chat-overview" style="color: var(--text-muted); margin-bottom: 16px;"></p>
+            <div class="results-header">
+                <h2>Audit Summary</h2>
+                <p id="chat-overview"></p>
+            </div>
             <div class="stats-grid" id="stats-grid">
-                <!-- Dynamically filled stats -->
+                <!-- Dynamically populated metrics -->
             </div>
         </div>
     </div>
@@ -264,7 +281,7 @@
                     return;
                 }
 
-                displayResults(messages);
+                runAuditAnalytics(messages);
             };
 
             reader.onerror = function() {
@@ -276,20 +293,12 @@
 
         /**
          * Universal WhatsApp Chat Parser
-         * Supports global formats (iOS & Android, brackets or dashes, any language/characters)
          */
         function parseWhatsAppChat(fileContent) {
             const patterns = [
-                // 1. Bracketed format with 4-digit year first: [YYYY/MM/DD, HH:MM:SS] Sender: Message
                 /^\[(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2}(?:\:\d{2})?)\]\s+([^:]+):\s+([\s\S]*)$/,
-                
-                // 2. Bracketed standard international/US: [DD/MM/YYYY, HH:MM:SS AM/PM] Sender: Message
                 /^\[(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\:\d{2})?(?:\s?[APap][Mm])?)\]\s+([^:]+):\s+([\s\S]*)$/,
-
-                // 3. Android style with dash: DD/MM/YYYY, HH:MM - Sender: Message
                 /^(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\s?[APap][Mm])?)\s+-\s+([^:]+):\s+([\s\S]*)$/,
-
-                // 4. Android style with dash and 4-digit year first: YYYY-MM-DD HH:MM - Sender: Message
                 /^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2})\s+-\s+([^:]+):\s+([\s\S]*)$/
             ];
 
@@ -299,7 +308,6 @@
 
             lines.forEach(line => {
                 let matched = false;
-
                 for (let pattern of patterns) {
                     const match = line.match(pattern);
                     if (match) {
@@ -307,7 +315,8 @@
                             messages.push(currentMessage);
                         }
                         currentMessage = {
-                            timestamp: match[1].trim(),
+                            rawTimestamp: match[1].trim(),
+                            dateObj: parseTimestamp(match[1].trim()),
                             sender: match[2].trim(),
                             text: match[3]
                         };
@@ -316,7 +325,6 @@
                     }
                 }
 
-                // Handle multi-line messages
                 if (!matched && currentMessage) {
                     currentMessage.text += '\n' + line;
                 }
@@ -329,34 +337,128 @@
             return messages;
         }
 
-        function displayResults(messages) {
+        /**
+         * Helper to parse various date-time strings into JavaScript Date objects
+         */
+        function parseTimestamp(tsStr) {
+            // Clean up common variations to make it parsable
+            let clean = tsStr.replace('[', '').replace(']', '');
+            // Try standard Date parsing
+            let d = new Date(clean);
+            if (!isNaN(d)) return d;
+
+            // Fallback for custom formats like YYYY/MM/DD or DD/MM/YYYY
+            let parts = clean.split(/[\/\-\,\s\:]+/);
+            if (parts.length >= 5) {
+                // Check if year is first
+                if (parts[0].length === 4) {
+                    return new Date(parts[0], parts[1] - 1, parts[2], parts[3], parts[4], parts[5] || 0);
+                } else {
+                    // Assume DD/MM/YYYY
+                    return new Date(parts[2], parts[1] - 1, parts[0], parts[3], parts[4], parts[5] || 0);
+                }
+            }
+            return new Date();
+        }
+
+        /**
+         * Advanced Analytics Engine
+         */
+        function runAuditAnalytics(messages) {
             resultsContainer.style.display = 'block';
 
-            // Count messages per sender
+            // 1. Message Volume Counts per Sender
             const senders = {};
             messages.forEach(msg => {
                 senders[msg.sender] = (senders[msg.sender] || 0) + 1;
             });
 
             const senderKeys = Object.keys(senders);
-            chatOverview.textContent = `Successfully parsed ${messages.length} messages between ${senderKeys.join(' and ')}.`;
+            const totalMessages = messages.length;
+            
+            chatOverview.textContent = `Analyzed ${totalMessages.toLocaleString()} messages across ${senderKeys.length} participants (${senderKeys.join(' & ')}).`;
 
+            // 2. Calculate Response Latencies and Weekly Energy
+            let responseTimes = {};
+            senderKeys.forEach(s => responseTimes[s] = []);
+
+            let weeklyVolume = {};
+
+            for (let i = 1; i < messages.length; i++) {
+                let prev = messages[i - 1];
+                let curr = messages[i];
+
+                // Response latency (when sender changes)
+                if (curr.sender !== prev.sender) {
+                    let diffMinutes = (curr.dateObj - prev.dateObj) / (1000 * 60);
+                    // Only count reasonable gaps (less than 24 hours to avoid sleep/away distortion skewing averages)
+                    if (diffMinutes > 0 && diffMinutes < 1440) {
+                        responseTimes[curr.sender].push(diffMinutes);
+                    }
+                }
+
+                // Weekly energy grouping (Year - Week number)
+                let year = curr.dateObj.getFullYear();
+                let weekNum = getWeekNumber(curr.dateObj);
+                let weekKey = `${year}-W${weekNum}`;
+                weeklyVolume[weekKey] = (weeklyVolume[weekKey] || 0) + 1;
+            }
+
+            // Find peak/lowest energy weeks
+            let weeks = Object.keys(weeklyVolume).sort();
+            let peakWeek = "N/A";
+            let maxVol = 0;
+            weeks.forEach(w => {
+                if (weeklyVolume[w] > maxVol) {
+                    maxVol = weeklyVolume[w];
+                    peakWeek = w;
+                }
+            });
+
+            // Render Output Cards
             statsGrid.innerHTML = '';
+
+            // Sender Breakdown Cards
             senderKeys.forEach(sender => {
+                let count = senders[sender];
+                let pct = ((count / totalMessages) * 100).toFixed(1);
+                let avgLatencyMins = responseTimes[sender].length > 0 
+                    ? Math.round(responseTimes[sender].reduce((a, b) => a + b, 0) / responseTimes[sender].length) 
+                    : 0;
+                
+                let latencyText = avgLatencyMins < 60 ? `${avgLatencyMins} mins` : `${(avgLatencyMins/60).toFixed(1)} hours`;
+
                 statsGrid.innerHTML += `
                     <div class="stat-card">
-                        <h4>Messages (${sender})</h4>
-                        <p>${senders[sender]}</p>
+                        <h4>Reciprocity (${sender})</h4>
+                        <div class="stat-value">${count.toLocaleString()} msgs (${pct}%)</div>
+                        <div class="stat-desc">Avg. reply time: <strong>${latencyText}</strong></div>
                     </div>
                 `;
             });
 
+            // Overall Insights Card
             statsGrid.innerHTML += `
                 <div class="stat-card">
-                    <h4>Total Messages</h4>
-                    <p>${messages.length}</p>
+                    <h4>Peak Energy Period</h4>
+                    <div class="stat-value">${peakWeek}</div>
+                    <div class="stat-desc">Highest activity recorded at <strong>${maxVol}</strong> messages/week.</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Total Audit Scope</h4>
+                    <div class="stat-value">${totalMessages.toLocaleString()} Messages</div>
+                    <div class="stat-desc">Span: <strong>${weeks.length} active weeks</strong> evaluated.</div>
                 </div>
             `;
+        }
+
+        // Helper to get ISO week number
+        function getWeekNumber(d) {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+            var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+            return weekNo;
         }
     </script>
 </body>
