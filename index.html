@@ -230,7 +230,7 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 16px;
         }
 
@@ -558,14 +558,21 @@
             let dailyInitiators = {};
             let lowEffortOpeners = {};
             let doubleTexts = {};
-            let callStats = {};
+            let questionCounts = {};
             let wordCounts = {};
+            let callStats = {};
+            let timeWindows = {};
+            let morningFollowUps = {}; // Tracks who carried effort after a morning opener
+
             senderKeys.forEach(s => {
                 dailyInitiators[s] = 0;
                 lowEffortOpeners[s] = 0;
                 doubleTexts[s] = 0;
-                callStats[s] = { total: 0, missed: 0, completed: 0 };
+                questionCounts[s] = 0;
                 wordCounts[s] = [];
+                callStats[s] = { total: 0, missed: 0, completed: 0 };
+                timeWindows[s] = { morning: 0, afternoon: 0, evening: 0, lateNight: 0 };
+                morningFollowUps[s] = { openers: 0, carriedAfter: 0 };
             });
 
             calls.forEach(c => {
@@ -582,6 +589,7 @@
             let activeDays = new Set();
             let lastDayStr = "";
             let weeklyVolume = {};
+            let maxSilentHours = 0;
 
             messages.forEach((msg, i) => {
                 let dayStr = msg.dateObj.toISOString().split('T')[0];
@@ -592,20 +600,50 @@
                     lastDayStr = dayStr;
                 }
 
-                let words = msg.text.trim().split(/\s+/);
+                let text = msg.text.trim();
+                let words = text.split(/\s+/);
                 wordCounts[msg.sender].push(words.length);
 
-                let hour = msg.dateObj.getHours();
-                if (hour >= 6 && hour < 10 && words.length <= 5) {
-                    lowEffortOpeners[msg.sender] = (lowEffortOpeners[msg.sender] || 0) + 1;
+                if (text.includes('?')) {
+                    questionCounts[msg.sender]++;
                 }
 
+                // Time Window Buckets
+                let hour = msg.dateObj.getHours();
+                if (hour >= 6 && hour < 12) timeWindows[msg.sender].morning++;
+                else if (hour >= 12 && hour < 17) timeWindows[msg.sender].afternoon++;
+                else if (hour >= 17 && hour < 22) timeWindows[msg.sender].evening++;
+                else timeWindows[msg.sender].lateNight++;
+
+                // Low-effort morning check-ins (6am - 10am, <= 5 words)
+                if (hour >= 6 && hour < 10 && words.length <= 5) {
+                    lowEffortOpeners[msg.sender]++;
+                    morningFollowUps[msg.sender].openers++;
+
+                    // Check next 3 messages: did this person carry the follow-up effort or did they go quiet?
+                    let participantCarried = false;
+                    for (let j = i + 1; j < Math.min(i + 4, messages.length); j++) {
+                        if (messages[j].sender === msg.sender) {
+                            participantCarried = true;
+                        }
+                    }
+                    if (participantCarried) {
+                        morningFollowUps[msg.sender].carriedAfter++;
+                    }
+                }
+
+                // Double texts and response latency
                 if (i > 0) {
                     let prev = messages[i - 1];
+                    let diffHours = (msg.dateObj - prev.dateObj) / (1000 * 60 * 60);
+                    if (diffHours > maxSilentHours) {
+                        maxSilentHours = diffHours;
+                    }
+
                     if (msg.sender === prev.sender) {
                         doubleTexts[msg.sender]++;
                     } else {
-                        let diffMinutes = (msg.dateObj - prev.dateObj) / (1000 * 60);
+                        let diffMinutes = diffHours * 60;
                         if (diffMinutes > 0 && diffMinutes < 1440) {
                             responseTimes[msg.sender].push(diffMinutes);
                         }
@@ -620,7 +658,7 @@
 
             let totalDaysCount = activeDays.size || 1;
 
-            // Detect the exact week the energy shifted (biggest drop from previous week's moving average)
+            // Exact energy shift detection
             let weeks = Object.keys(weeklyVolume).sort();
             let peakWeek = "N/A";
             let maxVol = 0;
@@ -637,7 +675,6 @@
                 if (i > 0) {
                     let prevVol = weeklyVolume[weeks[i - 1]];
                     let drop = prevVol - vol;
-                    // Detect significant drop (>35% reduction from previous week)
                     if (drop > maxDrop && prevVol > 30 && (drop / prevVol) > 0.35) {
                         maxDrop = drop;
                         shiftWeek = `${w} (dropped from ${prevVol} to ${vol} msgs)`;
@@ -654,6 +691,7 @@
                 let startPct = ((starts / totalDaysCount) * 100).toFixed(1);
                 let breadcrumbs = lowEffortOpeners[sender] || 0;
                 let doubles = doubleTexts[sender] || 0;
+                let questions = questionCounts[sender] || 0;
                 let cTotal = callStats[sender] ? callStats[sender].total : 0;
                 let cMissed = callStats[sender] ? callStats[sender].missed : 0;
                 let cCompleted = callStats[sender] ? callStats[sender].completed : 0;
@@ -667,7 +705,16 @@
                     : 0;
                 let latencyText = avgLatencyMins < 60 ? `${avgLatencyMins} mins` : `${(avgLatencyMins/60).toFixed(1)} hours`;
 
-                // Behavioral Attachment Pattern Tagging
+                // Find peak communication window
+                let windows = timeWindows[sender];
+                let peakWin = Object.keys(windows).reduce((a, b) => windows[a] > windows[b] ? a : b);
+                let peakWinText = peakWin === 'lateNight' ? 'Late Night (10pm-6am)' : peakWin.charAt(0).toUpperCase() + peakWin.slice(1);
+
+                // Topic carrying / Follow-up score
+                let openerCount = morningFollowUps[sender].openers;
+                let carriedCount = morningFollowUps[sender].carriedAfter;
+                let carryScore = openerCount > 0 ? Math.round((carriedCount / openerCount) * 100) : 50;
+
                 let patternTag = "Balanced Engagement";
                 if (doubles > count * 0.15 && avgWords > 10) {
                     patternTag = "Anxious Pattern (Higher double-texting & investment)";
@@ -683,8 +730,11 @@
                             Started day first: <strong>${starts} times (${startPct}%)</strong><br>
                             Avg Reply Time: <strong>${latencyText}</strong><br>
                             Avg Message Length: <strong>${avgWords} words</strong><br>
+                            Questions Asked: <strong>${questions}</strong><br>
                             Double Texts Sent: <strong>${doubles}</strong><br>
                             Low-Effort Morning Check-ins: <strong>${breadcrumbs}</strong><br>
+                            Topic Carrying Score: <strong>${carryScore}% follow-through</strong><br>
+                            Peak Comm Window: <strong>${peakWinText}</strong><br>
                             Calls: <strong>${cTotal}</strong> (${cCompleted} completed, ${cMissed} missed)<br>
                             <span style="color: var(--jade-primary);">Style Dynamic: ${patternTag}</span>
                         </div>
@@ -692,11 +742,18 @@
                 `;
             });
 
+            let silentStreakDisplay = maxSilentHours < 24 ? `${Math.round(maxSilentHours)} hours` : `${(maxSilentHours/24).toFixed(1)} days`;
+
             statsGrid.innerHTML += `
                 <div class="stat-card alert">
                     <h4>Exact Energy Shift Detected</h4>
                     <div class="stat-value">${shiftWeek}</div>
                     <div class="stat-desc">Pinpoints the exact week engagement and communication momentum sharply declined.</div>
+                </div>
+                <div class="stat-card alert">
+                    <h4>Longest Silent Streak</h4>
+                    <div class="stat-value">${silentStreakDisplay}</div>
+                    <div class="stat-desc">Maximum gap where chat went completely dead, highlighting sudden withdrawals.</div>
                 </div>
                 <div class="stat-card">
                     <h4>Peak Energy Period</h4>
