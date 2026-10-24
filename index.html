@@ -114,6 +114,22 @@
             box-shadow: 0 6px 16px var(--jade-glow);
         }
 
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--jade-primary);
+            border: 1px solid var(--jade-primary);
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--jade-glow);
+        }
+
         input[type="file"] {
             display: none;
         }
@@ -140,7 +156,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 16px;
-            align-items: center;
+            align-items: flex-end;
         }
 
         .filter-group {
@@ -159,9 +175,17 @@
             background: var(--bg-dark);
             border: 1px solid var(--card-border);
             color: var(--text-light);
-            padding: 8px 12px;
+            padding: 9px 12px;
             border-radius: 6px;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+
+        .quick-presets {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
         }
 
         /* Error Banner */
@@ -262,13 +286,20 @@
             <div class="filter-controls">
                 <div class="filter-group">
                     <label for="startDate">Start Date</label>
-                    <input type="date" id="startDate">
+                    <input type="date" id="startDate" onclick="this.showPicker && this.showPicker()">
                 </div>
                 <div class="filter-group">
                     <label for="endDate">End Date</label>
-                    <input type="date" id="endDate">
+                    <input type="date" id="endDate" onclick="this.showPicker && this.showPicker()">
                 </div>
-                <button class="btn" id="applyFilterBtn" type="button" style="margin-top: 18px;">Apply Range</button>
+                <button class="btn" id="applyFilterBtn" type="button">Apply Range</button>
+            </div>
+            <!-- Quick Range Presets -->
+            <div class="quick-presets">
+                <button class="btn-secondary" type="button" onclick="setPresetDays(30)">Last 30 Days</button>
+                <button class="btn-secondary" type="button" onclick="setPresetDays(90)">Last 3 Months</button>
+                <button class="btn-secondary" type="button" onclick="setPresetDays(180)">Last 6 Months</button>
+                <button class="btn-secondary" type="button" onclick="setPresetAll()">Full History</button>
             </div>
         </div>
 
@@ -289,6 +320,8 @@
 
     <script>
         let globalMessages = [];
+        let minFileDate = null;
+        let maxFileDate = null;
 
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
@@ -353,17 +386,16 @@
                     return;
                 }
 
-                // Set min and max bounds for date pickers
-                const minDate = globalMessages[0].dateObj.toISOString().split('T')[0];
-                const maxDate = globalMessages[globalMessages.length - 1].dateObj.toISOString().split('T')[0];
-                
-                startDateInput.value = minDate;
-                startDateInput.min = minDate;
-                startDateInput.max = maxDate;
+                minFileDate = globalMessages[0].dateObj;
+                maxFileDate = globalMessages[globalMessages.length - 1].dateObj;
 
-                endDateInput.value = maxDate;
-                endDateInput.min = minDate;
-                endDateInput.max = maxDate;
+                startDateInput.min = minFileDate.toISOString().split('T')[0];
+                startDateInput.max = maxFileDate.toISOString().split('T')[0];
+                endDateInput.min = minFileDate.toISOString().split('T')[0];
+                endDateInput.max = maxFileDate.toISOString().split('T')[0];
+
+                // Default to full range
+                setPresetAll();
 
                 filterSection.style.display = 'block';
                 runFilteredAudit();
@@ -374,6 +406,24 @@
             };
 
             reader.readAsText(file);
+        }
+
+        function setPresetAll() {
+            if (!minFileDate || !maxFileDate) return;
+            startDateInput.value = minFileDate.toISOString().split('T')[0];
+            endDateInput.value = maxFileDate.toISOString().split('T')[0];
+            runFilteredAudit();
+        }
+
+        function setPresetDays(daysCount) {
+            if (!maxFileDate) return;
+            let start = new Date(maxFileDate);
+            start.setDate(start.getDate() - daysCount);
+            if (start < minFileDate) start = new Date(minFileDate);
+
+            startDateInput.value = start.toISOString().split('T')[0];
+            endDateInput.value = maxFileDate.toISOString().split('T')[0];
+            runFilteredAudit();
         }
 
         function parseWhatsAppChat(fileContent) {
@@ -465,7 +515,6 @@
             
             chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages across ${senderKeys.join(' & ')} within the selected timeframe.`;
 
-            // Response Latency & Daily Initiations & Morning Breadcrumbs
             let responseTimes = {};
             senderKeys.forEach(s => responseTimes[s] = []);
             let dailyInitiators = {};
@@ -477,27 +526,23 @@
 
             let activeDays = new Set();
             let lastDayStr = "";
-
             let weeklyVolume = {};
 
             messages.forEach((msg, i) => {
                 let dayStr = msg.dateObj.toISOString().split('T')[0];
                 activeDays.add(dayStr);
 
-                // Track first message of each calendar day
                 if (dayStr !== lastDayStr) {
                     dailyInitiators[msg.sender] = (dailyInitiators[msg.sender] || 0) + 1;
                     lastDayStr = dayStr;
                 }
 
-                // Morning breadcrumbs (6am - 10am, under 5 words)
                 let hour = msg.dateObj.getHours();
                 let wordCount = msg.text.trim().split(/\s+/).length;
                 if (hour >= 6 && hour < 10 && wordCount <= 5) {
                     morningOpeners[msg.sender] = (morningOpeners[msg.sender] || 0) + 1;
                 }
 
-                // Response lag
                 if (i > 0) {
                     let prev = messages[i - 1];
                     if (msg.sender !== prev.sender) {
@@ -508,7 +553,6 @@
                     }
                 }
 
-                // Weekly volume
                 let year = msg.dateObj.getFullYear();
                 let weekNum = getWeekNumber(msg.dateObj);
                 let weekKey = `${year}-W${weekNum}`;
@@ -517,7 +561,6 @@
 
             let totalDaysCount = activeDays.size || 1;
 
-            // Peak week finding
             let weeks = Object.keys(weeklyVolume).sort();
             let peakWeek = "N/A";
             let maxVol = 0;
@@ -530,7 +573,6 @@
 
             statsGrid.innerHTML = '';
 
-            // Reciprocity & Daily Starter metrics per sender
             senderKeys.forEach(sender => {
                 let count = senders[sender];
                 let pct = ((count / totalMessages) * 100).toFixed(1);
