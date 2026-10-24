@@ -6,7 +6,6 @@
     <title>unlinked: Limerence | Relationship Audit</title>
     <style>
         :root {
-            /* Unlinked Exact Theme: Charcoal & Jade / Mint */
             --bg-dark: #070b14;
             --card-bg: #0f172a;
             --card-border: #1e293b;
@@ -32,7 +31,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            padding: 50px 20px;
+            padding: 40px 20px;
         }
 
         .container {
@@ -56,7 +55,7 @@
         header p {
             color: var(--text-muted);
             font-size: 1.1rem;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             line-height: 1.5;
         }
 
@@ -65,12 +64,12 @@
             background-color: var(--card-bg);
             border: 2px dashed var(--jade-primary);
             border-radius: 16px;
-            padding: 40px 30px;
+            padding: 35px 30px;
             transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-            margin-bottom: 30px;
+            margin-bottom: 24px;
         }
 
         .dropzone:hover, .dropzone.dragover {
@@ -80,12 +79,12 @@
         }
 
         .dropzone-icon {
-            font-size: 42px;
-            margin-bottom: 12px;
+            font-size: 38px;
+            margin-bottom: 10px;
         }
 
         .dropzone h3 {
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             margin-bottom: 6px;
             color: var(--text-light);
         }
@@ -93,14 +92,14 @@
         .dropzone p {
             color: var(--text-muted);
             font-size: 0.9rem;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .btn {
             background-color: var(--jade-primary);
             color: #070b14;
             border: none;
-            padding: 10px 26px;
+            padding: 10px 24px;
             font-size: 0.95rem;
             font-weight: 700;
             border-radius: 8px;
@@ -119,6 +118,52 @@
             display: none;
         }
 
+        /* Date Filter Bar */
+        #filter-section {
+            display: none;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.4);
+            text-align: left;
+        }
+
+        #filter-section h3 {
+            font-size: 1rem;
+            color: var(--text-light);
+            margin-bottom: 12px;
+        }
+
+        .filter-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .filter-group label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .filter-group input {
+            background: var(--bg-dark);
+            border: 1px solid var(--card-border);
+            color: var(--text-light);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
         /* Error Banner */
         #error-banner {
             display: none;
@@ -127,7 +172,7 @@
             color: #fca5a5;
             padding: 14px;
             border-radius: 8px;
-            margin-top: 20px;
+            margin-bottom: 20px;
             font-size: 0.95rem;
             text-align: left;
         }
@@ -182,7 +227,7 @@
         }
 
         .stat-value {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: 800;
             color: var(--text-light);
             margin-bottom: 4px;
@@ -211,6 +256,22 @@
             <input type="file" id="fileInput" accept=".txt">
         </div>
 
+        <!-- Date Range Filter Section -->
+        <div id="filter-section">
+            <h3>Filter Audit Timeline</h3>
+            <div class="filter-controls">
+                <div class="filter-group">
+                    <label for="startDate">Start Date</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="filter-group">
+                    <label for="endDate">End Date</label>
+                    <input type="date" id="endDate">
+                </div>
+                <button class="btn" id="applyFilterBtn" type="button" style="margin-top: 18px;">Apply Range</button>
+            </div>
+        </div>
+
         <!-- Error Message Display -->
         <div id="error-banner"></div>
 
@@ -227,10 +288,16 @@
     </div>
 
     <script>
+        let globalMessages = [];
+
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
         const errorBanner = document.getElementById('error-banner');
         const resultsContainer = document.getElementById('results-container');
+        const filterSection = document.getElementById('filter-section');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const applyFilterBtn = document.getElementById('applyFilterBtn');
         const chatOverview = document.getElementById('chat-overview');
         const statsGrid = document.getElementById('stats-grid');
 
@@ -262,10 +329,15 @@
             }
         });
 
+        applyFilterBtn.addEventListener('click', () => {
+            runFilteredAudit();
+        });
+
         function showError(message) {
             errorBanner.style.display = 'block';
             errorBanner.textContent = message;
             resultsContainer.style.display = 'none';
+            filterSection.style.display = 'none';
         }
 
         function handleFile(file) {
@@ -274,14 +346,27 @@
 
             reader.onload = function(e) {
                 const content = e.target.result;
-                const messages = parseWhatsAppChat(content);
+                globalMessages = parseWhatsAppChat(content);
 
-                if (messages.length === 0) {
+                if (globalMessages.length === 0) {
                     showError("Could not parse any valid messages. Please verify the file is an exported WhatsApp chat text file.");
                     return;
                 }
 
-                runAuditAnalytics(messages);
+                // Set min and max bounds for date pickers
+                const minDate = globalMessages[0].dateObj.toISOString().split('T')[0];
+                const maxDate = globalMessages[globalMessages.length - 1].dateObj.toISOString().split('T')[0];
+                
+                startDateInput.value = minDate;
+                startDateInput.min = minDate;
+                startDateInput.max = maxDate;
+
+                endDateInput.value = maxDate;
+                endDateInput.min = minDate;
+                endDateInput.max = maxDate;
+
+                filterSection.style.display = 'block';
+                runFilteredAudit();
             };
 
             reader.onerror = function() {
@@ -291,9 +376,6 @@
             reader.readAsText(file);
         }
 
-        /**
-         * Universal WhatsApp Chat Parser
-         */
         function parseWhatsAppChat(fileContent) {
             const patterns = [
                 /^\[(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2}(?:\:\d{2})?)\]\s+([^:]+):\s+([\s\S]*)$/,
@@ -337,37 +419,42 @@
             return messages;
         }
 
-        /**
-         * Helper to parse various date-time strings into JavaScript Date objects
-         */
         function parseTimestamp(tsStr) {
-            // Clean up common variations to make it parsable
             let clean = tsStr.replace('[', '').replace(']', '');
-            // Try standard Date parsing
             let d = new Date(clean);
             if (!isNaN(d)) return d;
 
-            // Fallback for custom formats like YYYY/MM/DD or DD/MM/YYYY
             let parts = clean.split(/[\/\-\,\s\:]+/);
             if (parts.length >= 5) {
-                // Check if year is first
                 if (parts[0].length === 4) {
                     return new Date(parts[0], parts[1] - 1, parts[2], parts[3], parts[4], parts[5] || 0);
                 } else {
-                    // Assume DD/MM/YYYY
                     return new Date(parts[2], parts[1] - 1, parts[0], parts[3], parts[4], parts[5] || 0);
                 }
             }
             return new Date();
         }
 
-        /**
-         * Advanced Analytics Engine
-         */
+        function runFilteredAudit() {
+            const startLimit = new Date(startDateInput.value);
+            startLimit.setHours(0, 0, 0, 0);
+
+            const endLimit = new Date(endDateInput.value);
+            endLimit.setHours(23, 59, 59, 999);
+
+            const filtered = globalMessages.filter(m => m.dateObj >= startLimit && m.dateObj <= endLimit);
+
+            if (filtered.length === 0) {
+                showError("No messages found in the selected date range.");
+                return;
+            }
+
+            runAuditAnalytics(filtered);
+        }
+
         function runAuditAnalytics(messages) {
             resultsContainer.style.display = 'block';
 
-            // 1. Message Volume Counts per Sender
             const senders = {};
             messages.forEach(msg => {
                 senders[msg.sender] = (senders[msg.sender] || 0) + 1;
@@ -376,35 +463,61 @@
             const senderKeys = Object.keys(senders);
             const totalMessages = messages.length;
             
-            chatOverview.textContent = `Analyzed ${totalMessages.toLocaleString()} messages across ${senderKeys.length} participants (${senderKeys.join(' & ')}).`;
+            chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages across ${senderKeys.join(' & ')} within the selected timeframe.`;
 
-            // 2. Calculate Response Latencies and Weekly Energy
+            // Response Latency & Daily Initiations & Morning Breadcrumbs
             let responseTimes = {};
             senderKeys.forEach(s => responseTimes[s] = []);
+            let dailyInitiators = {};
+            let morningOpeners = {};
+            senderKeys.forEach(s => {
+                dailyInitiators[s] = 0;
+                morningOpeners[s] = 0;
+            });
+
+            let activeDays = new Set();
+            let lastDayStr = "";
 
             let weeklyVolume = {};
 
-            for (let i = 1; i < messages.length; i++) {
-                let prev = messages[i - 1];
-                let curr = messages[i];
+            messages.forEach((msg, i) => {
+                let dayStr = msg.dateObj.toISOString().split('T')[0];
+                activeDays.add(dayStr);
 
-                // Response latency (when sender changes)
-                if (curr.sender !== prev.sender) {
-                    let diffMinutes = (curr.dateObj - prev.dateObj) / (1000 * 60);
-                    // Only count reasonable gaps (less than 24 hours to avoid sleep/away distortion skewing averages)
-                    if (diffMinutes > 0 && diffMinutes < 1440) {
-                        responseTimes[curr.sender].push(diffMinutes);
+                // Track first message of each calendar day
+                if (dayStr !== lastDayStr) {
+                    dailyInitiators[msg.sender] = (dailyInitiators[msg.sender] || 0) + 1;
+                    lastDayStr = dayStr;
+                }
+
+                // Morning breadcrumbs (6am - 10am, under 5 words)
+                let hour = msg.dateObj.getHours();
+                let wordCount = msg.text.trim().split(/\s+/).length;
+                if (hour >= 6 && hour < 10 && wordCount <= 5) {
+                    morningOpeners[msg.sender] = (morningOpeners[msg.sender] || 0) + 1;
+                }
+
+                // Response lag
+                if (i > 0) {
+                    let prev = messages[i - 1];
+                    if (msg.sender !== prev.sender) {
+                        let diffMinutes = (msg.dateObj - prev.dateObj) / (1000 * 60);
+                        if (diffMinutes > 0 && diffMinutes < 1440) {
+                            responseTimes[msg.sender].push(diffMinutes);
+                        }
                     }
                 }
 
-                // Weekly energy grouping (Year - Week number)
-                let year = curr.dateObj.getFullYear();
-                let weekNum = getWeekNumber(curr.dateObj);
+                // Weekly volume
+                let year = msg.dateObj.getFullYear();
+                let weekNum = getWeekNumber(msg.dateObj);
                 let weekKey = `${year}-W${weekNum}`;
                 weeklyVolume[weekKey] = (weeklyVolume[weekKey] || 0) + 1;
-            }
+            });
 
-            // Find peak/lowest energy weeks
+            let totalDaysCount = activeDays.size || 1;
+
+            // Peak week finding
             let weeks = Object.keys(weeklyVolume).sort();
             let peakWeek = "N/A";
             let maxVol = 0;
@@ -415,44 +528,48 @@
                 }
             });
 
-            // Render Output Cards
             statsGrid.innerHTML = '';
 
-            // Sender Breakdown Cards
+            // Reciprocity & Daily Starter metrics per sender
             senderKeys.forEach(sender => {
                 let count = senders[sender];
                 let pct = ((count / totalMessages) * 100).toFixed(1);
+                let starts = dailyInitiators[sender] || 0;
+                let startPct = ((starts / totalDaysCount) * 100).toFixed(1);
+                let breadcrumbs = morningOpeners[sender] || 0;
+
                 let avgLatencyMins = responseTimes[sender].length > 0 
                     ? Math.round(responseTimes[sender].reduce((a, b) => a + b, 0) / responseTimes[sender].length) 
                     : 0;
-                
                 let latencyText = avgLatencyMins < 60 ? `${avgLatencyMins} mins` : `${(avgLatencyMins/60).toFixed(1)} hours`;
 
                 statsGrid.innerHTML += `
                     <div class="stat-card">
-                        <h4>Reciprocity (${sender})</h4>
+                        <h4>Audit Profile (${sender})</h4>
                         <div class="stat-value">${count.toLocaleString()} msgs (${pct}%)</div>
-                        <div class="stat-desc">Avg. reply time: <strong>${latencyText}</strong></div>
+                        <div class="stat-desc" style="margin-top:6px;">
+                            Started day: <strong>${starts} times (${startPct}%)</strong><br>
+                            Avg Reply Time: <strong>${latencyText}</strong><br>
+                            Morning Openers: <strong>${breadcrumbs}</strong>
+                        </div>
                     </div>
                 `;
             });
 
-            // Overall Insights Card
             statsGrid.innerHTML += `
                 <div class="stat-card">
                     <h4>Peak Energy Period</h4>
                     <div class="stat-value">${peakWeek}</div>
-                    <div class="stat-desc">Highest activity recorded at <strong>${maxVol}</strong> messages/week.</div>
+                    <div class="stat-desc">Highest activity recorded at <strong>${maxVol}</strong> messages in this window.</div>
                 </div>
                 <div class="stat-card">
-                    <h4>Total Audit Scope</h4>
-                    <div class="stat-value">${totalMessages.toLocaleString()} Messages</div>
-                    <div class="stat-desc">Span: <strong>${weeks.length} active weeks</strong> evaluated.</div>
+                    <h4>Timeframe Scope</h4>
+                    <div class="stat-value">${totalDaysCount} Active Days</div>
+                    <div class="stat-desc">Filtered scope covers <strong>${messages.length.toLocaleString()} messages</strong>.</div>
                 </div>
             `;
         }
 
-        // Helper to get ISO week number
         function getWeekNumber(d) {
             d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
             d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
