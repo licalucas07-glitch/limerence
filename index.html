@@ -6,16 +6,15 @@
     <title>unlinked: Limerence | Relationship Audit</title>
     <style>
         :root {
-            /* Unlinked Charcoal & Jade Palette */
-            --bg-dark: #0f172a;
-            --card-bg: #1e293b;
-            --accent-gold: #f59e0b;
-            --accent-gold-hover: #d97706;
-            --accent-jade: #059669;
-            --accent-jade-glow: rgba(5, 150, 105, 0.2);
+            /* Unlinked Exact Theme: Charcoal & Jade / Mint */
+            --bg-dark: #070b14;
+            --card-bg: #0f172a;
+            --card-border: #1e293b;
+            --jade-primary: #2dd4bf;
+            --jade-hover: #14b8a6;
+            --jade-glow: rgba(45, 212, 191, 0.25);
             --text-light: #f8fafc;
             --text-muted: #94a3b8;
-            --border-color: #334155;
         }
 
         * {
@@ -33,7 +32,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            padding: 40px 20px;
+            padding: 50px 20px;
         }
 
         .container {
@@ -51,7 +50,7 @@
         }
 
         header h1 span {
-            color: var(--accent-gold);
+            color: var(--jade-primary);
         }
 
         header p {
@@ -61,22 +60,22 @@
             line-height: 1.5;
         }
 
-        /* Dropzone Styling */
+        /* Dropzone Styling matching the Jade/Mint theme */
         .dropzone {
             background-color: var(--card-bg);
-            border: 2px dashed var(--accent-jade);
+            border: 2px dashed var(--jade-primary);
             border-radius: 16px;
             padding: 50px 30px;
             transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
         }
 
         .dropzone:hover, .dropzone.dragover {
-            border-color: #10b981;
-            background-color: #1b263b;
-            box-shadow: 0 0 20px var(--accent-jade-glow);
+            border-color: #5eead4;
+            background-color: #131f36;
+            box-shadow: 0 0 25px var(--jade-glow);
         }
 
         .dropzone-icon {
@@ -97,20 +96,22 @@
         }
 
         .btn {
-            background-color: var(--accent-gold);
-            color: #0f172a;
+            background-color: var(--jade-primary);
+            color: #070b14;
             border: none;
-            padding: 12px 28px;
+            padding: 12px 30px;
             font-size: 1rem;
             font-weight: 700;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
-            transition: background-color 0.2s ease, transform 0.2s ease;
+            transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 12px var(--jade-glow);
         }
 
         .btn:hover {
-            background-color: var(--accent-gold-hover);
+            background-color: var(--jade-hover);
             transform: translateY(-1px);
+            box-shadow: 0 6px 16px var(--jade-glow);
         }
 
         input[type="file"] {
@@ -135,15 +136,16 @@
             display: none;
             margin-top: 30px;
             background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--card-border);
             border-radius: 16px;
             padding: 30px;
             text-align: left;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
         }
 
         #results-container h2 {
             font-size: 1.5rem;
-            margin-bottom: 16px;
+            margin-bottom: 8px;
             color: var(--text-light);
         }
 
@@ -157,8 +159,9 @@
         .stat-card {
             background: var(--bg-dark);
             padding: 18px;
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            border-left: 4px solid var(--jade-primary);
         }
 
         .stat-card h4 {
@@ -186,9 +189,9 @@
 
         <!-- Dropzone Box -->
         <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click();">
-            <div class="dropzone-icon">📁</div>
+            <div class="dropzone-icon">📂</div>
             <h3>Drag and drop your WhatsApp <code>_chat.txt</code> file here</h3>
-            <p>Export without media from WhatsApp settings.</p>
+            <p>Export without media from WhatsApp settings on any device or language.</p>
             <button class="btn" type="button">Select File</button>
             <input type="file" id="fileInput" accept=".txt">
         </div>
@@ -199,7 +202,7 @@
         <!-- Results Display -->
         <div id="results-container">
             <h2>Audit Results Summary</h2>
-            <p id="chat-overview" style="color: var(--text-muted);"></p>
+            <p id="chat-overview" style="color: var(--text-muted); margin-bottom: 16px;"></p>
             <div class="stats-grid" id="stats-grid">
                 <!-- Dynamically filled stats -->
             </div>
