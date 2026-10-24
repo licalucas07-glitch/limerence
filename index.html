@@ -135,8 +135,8 @@
             display: none;
         }
 
-        /* Date Filter Bar */
-        #filter-section {
+        /* Setup / Config Bar */
+        #config-section {
             display: none;
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -147,17 +147,18 @@
             text-align: left;
         }
 
-        #filter-section h3 {
+        #config-section h3 {
             font-size: 1rem;
             color: var(--text-light);
             margin-bottom: 12px;
         }
 
-        .filter-controls {
-            display: flex;
-            flex-wrap: wrap;
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 16px;
             align-items: flex-end;
+            margin-bottom: 16px;
         }
 
         .filter-group {
@@ -172,7 +173,7 @@
             text-transform: uppercase;
         }
 
-        .filter-group input {
+        .filter-group input, .filter-group select {
             background: var(--bg-dark);
             border: 1px solid var(--card-border);
             color: var(--text-light);
@@ -256,7 +257,7 @@
         }
 
         .stat-value {
-            font-size: 1.4rem;
+            font-size: 1.3rem;
             font-weight: 800;
             color: var(--text-light);
             margin-bottom: 4px;
@@ -286,10 +287,14 @@
             <input type="file" id="fileInput" accept=".txt">
         </div>
 
-        <!-- Date Range Filter Section -->
-        <div id="filter-section">
-            <h3>Filter Audit Timeline</h3>
-            <div class="filter-controls">
+        <!-- Configuration & Date Range Section -->
+        <div id="config-section">
+            <h3>Audit Configuration & Timeline</h3>
+            <div class="config-grid">
+                <div class="filter-group">
+                    <label for="userSelect">Identify As (You)</label>
+                    <select id="userSelect" onchange="runFilteredAudit()"></select>
+                </div>
                 <div class="filter-group">
                     <label for="startDate">Start Date</label>
                     <input type="date" id="startDate" onclick="this.showPicker && this.showPicker()">
@@ -298,7 +303,7 @@
                     <label for="endDate">End Date</label>
                     <input type="date" id="endDate" onclick="this.showPicker && this.showPicker()">
                 </div>
-                <button class="btn" id="applyFilterBtn" type="button">Apply Range</button>
+                <button class="btn" id="applyFilterBtn" type="button" style="height: 42px;">Apply Range</button>
             </div>
             <!-- Quick Range Presets -->
             <div class="quick-presets">
@@ -329,12 +334,14 @@
         let globalCalls = [];
         let minFileDate = null;
         let maxFileDate = null;
+        let detectedSenders = [];
 
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
         const errorBanner = document.getElementById('error-banner');
         const resultsContainer = document.getElementById('results-container');
-        const filterSection = document.getElementById('filter-section');
+        const configSection = document.getElementById('config-section');
+        const userSelect = document.getElementById('userSelect');
         const startDateInput = document.getElementById('startDate');
         const endDateInput = document.getElementById('endDate');
         const applyFilterBtn = document.getElementById('applyFilterBtn');
@@ -377,7 +384,7 @@
             errorBanner.style.display = 'block';
             errorBanner.textContent = message;
             resultsContainer.style.display = 'none';
-            filterSection.style.display = 'none';
+            configSection.style.display = 'none';
         }
 
         function handleFile(file) {
@@ -395,6 +402,22 @@
                     return;
                 }
 
+                let sendersSet = new Set();
+                globalMessages.forEach(m => sendersSet.add(m.sender));
+                globalCalls.forEach(c => sendersSet.add(c.caller));
+                detectedSenders = Array.from(sendersSet);
+
+                userSelect.innerHTML = '';
+                detectedSenders.forEach(s => {
+                    let opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    if (s.toLowerCase().includes('lical') || s.toLowerCase().includes('lica')) {
+                        opt.selected = true;
+                    }
+                    userSelect.appendChild(opt);
+                });
+
                 let allDates = [...globalMessages.map(m => m.dateObj), ...globalCalls.map(c => c.dateObj)];
                 allDates.sort((a, b) => a - b);
 
@@ -407,7 +430,7 @@
                 endDateInput.max = maxFileDate.toISOString().split('T')[0];
 
                 setPresetAll();
-                filterSection.style.display = 'block';
+                configSection.style.display = 'block';
                 runFilteredAudit();
             };
 
@@ -437,18 +460,11 @@
         }
 
         function parseWhatsAppChat(fileContent) {
-            const msgPatterns = [
+            const linePatterns = [
                 /^\[(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2}(?:\:\d{2})?)\]\s+([^:]+):\s+([\s\S]*)$/,
                 /^\[(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\:\d{2})?(?:\s?[APap][Mm])?)\]\s+([^:]+):\s+([\s\S]*)$/,
                 /^(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\s?[APap][Mm])?)\s+-\s+([^:]+):\s+([\s\S]*)$/,
                 /^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2})\s+-\s+([^:]+):\s+([\s\S]*)$/
-            ];
-
-            const callPatterns = [
-                /^\[(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2}(?:\:\d{2})?)\]\s+([^:]+):\s+(Missed.*call|.*call.*duration.*)$/i,
-                /^\[(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\:\d{2})?(?:\s?[APap][Mm])?)\]\s+([^:]+):\s+(Missed.*call|.*call.*duration.*)$/i,
-                /^(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\s?[APap][Mm])?)\s+-\s+([^:]+):\s+(Missed.*call|.*call.*duration.*)$/i,
-                /^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2})\s+-\s+([^:]+):\s+(Missed.*call|.*call.*duration.*)$/i
             ];
 
             const lines = fileContent.split('\n');
@@ -457,45 +473,50 @@
             let currentMessage = null;
 
             lines.forEach(line => {
-                let matchedCall = false;
-                for (let pattern of callPatterns) {
-                    const match = line.match(pattern);
-                    if (match) {
-                        let isMissed = /missed/i.test(match[3]);
-                        calls.push({
-                            rawTimestamp: match[1].trim(),
-                            dateObj: parseTimestamp(match[1].trim()),
-                            caller: match[2].trim(),
-                            text: match[3],
-                            missed: isMissed
-                        });
-                        matchedCall = true;
-                        currentMessage = null;
-                        break;
-                    }
-                }
+                let matchedLine = false;
 
-                if (matchedCall) return;
-
-                let matchedMsg = false;
-                for (let pattern of msgPatterns) {
+                for (let pattern of linePatterns) {
                     const match = line.match(pattern);
                     if (match) {
                         if (currentMessage) {
                             messages.push(currentMessage);
+                            currentMessage = null;
                         }
-                        currentMessage = {
-                            rawTimestamp: match[1].trim(),
-                            dateObj: parseTimestamp(match[1].trim()),
-                            sender: match[2].trim(),
-                            text: match[3]
-                        };
-                        matchedMsg = true;
+
+                        let timestamp = match[1].trim();
+                        let sender = match[2].trim();
+                        let text = match[3].trim();
+                        let textLower = text.toLowerCase();
+
+                        // Detect if line is a call (supports English, Afrikaans, etc. keywords)
+                        let isCall = textLower.includes('call') || textLower.includes('oproep') || 
+                                     textLower.includes('min') || textLower.includes('sec') || 
+                                     textLower.includes('duur') || textLower.includes('missed') || 
+                                     textLower.includes('gemiste');
+
+                        if (isCall) {
+                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste');
+                            calls.push({
+                                rawTimestamp: timestamp,
+                                dateObj: parseTimestamp(timestamp),
+                                caller: sender,
+                                text: text,
+                                missed: isMissed
+                            });
+                        } else {
+                            currentMessage = {
+                                rawTimestamp: timestamp,
+                                dateObj: parseTimestamp(timestamp),
+                                sender: sender,
+                                text: text
+                            };
+                        }
+                        matchedLine = true;
                         break;
                     }
                 }
 
-                if (!matchedMsg && currentMessage) {
+                if (!matchedLine && currentMessage) {
                     currentMessage.text += '\n' + line;
                 }
             });
@@ -538,6 +559,7 @@
 
         function runAuditAnalytics(messages, calls) {
             resultsContainer.style.display = 'block';
+            const currentUser = userSelect.value;
 
             const senders = {};
             messages.forEach(msg => {
@@ -551,7 +573,7 @@
             const senderKeys = Object.keys(senders);
             const totalMessages = messages.length;
             
-            chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages and ${calls.length} calls across ${senderKeys.join(' & ')} within the selected timeframe.`;
+            chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages and ${calls.length} calls across ${senderKeys.join(' & ')} within the selected timeframe. (Viewing as: ${currentUser})`;
 
             let responseTimes = {};
             senderKeys.forEach(s => responseTimes[s] = []);
@@ -562,7 +584,7 @@
             let wordCounts = {};
             let callStats = {};
             let timeWindows = {};
-            let morningFollowUps = {}; // Tracks who carried effort after a morning opener
+            let morningFollowUps = {};
 
             senderKeys.forEach(s => {
                 dailyInitiators[s] = 0;
@@ -590,6 +612,7 @@
             let lastDayStr = "";
             let weeklyVolume = {};
             let maxSilentHours = 0;
+            let lastSenderBeforeSilence = "N/A";
 
             messages.forEach((msg, i) => {
                 let dayStr = msg.dateObj.toISOString().split('T')[0];
@@ -608,19 +631,16 @@
                     questionCounts[msg.sender]++;
                 }
 
-                // Time Window Buckets
                 let hour = msg.dateObj.getHours();
                 if (hour >= 6 && hour < 12) timeWindows[msg.sender].morning++;
                 else if (hour >= 12 && hour < 17) timeWindows[msg.sender].afternoon++;
                 else if (hour >= 17 && hour < 22) timeWindows[msg.sender].evening++;
                 else timeWindows[msg.sender].lateNight++;
 
-                // Low-effort morning check-ins (6am - 10am, <= 5 words)
                 if (hour >= 6 && hour < 10 && words.length <= 5) {
                     lowEffortOpeners[msg.sender]++;
                     morningFollowUps[msg.sender].openers++;
 
-                    // Check next 3 messages: did this person carry the follow-up effort or did they go quiet?
                     let participantCarried = false;
                     for (let j = i + 1; j < Math.min(i + 4, messages.length); j++) {
                         if (messages[j].sender === msg.sender) {
@@ -632,12 +652,12 @@
                     }
                 }
 
-                // Double texts and response latency
                 if (i > 0) {
                     let prev = messages[i - 1];
                     let diffHours = (msg.dateObj - prev.dateObj) / (1000 * 60 * 60);
                     if (diffHours > maxSilentHours) {
                         maxSilentHours = diffHours;
+                        lastSenderBeforeSilence = prev.sender;
                     }
 
                     if (msg.sender === prev.sender) {
@@ -658,29 +678,30 @@
 
             let totalDaysCount = activeDays.size || 1;
 
-            // Exact energy shift detection
             let weeks = Object.keys(weeklyVolume).sort();
-            let peakWeek = "N/A";
+            let peakWeekKey = weeks[0];
             let maxVol = 0;
-            let shiftWeek = "Stable / Consistent";
+            let shiftWeekKey = null;
             let maxDrop = 0;
 
-            for (let i = 0; i < weeks.length; i++) {
-                let w = weeks[i];
+            weeks.forEach((w, i) => {
                 let vol = weeklyVolume[w];
                 if (vol > maxVol) {
                     maxVol = vol;
-                    peakWeek = w;
+                    peakWeekKey = w;
                 }
                 if (i > 0) {
                     let prevVol = weeklyVolume[weeks[i - 1]];
                     let drop = prevVol - vol;
                     if (drop > maxDrop && prevVol > 30 && (drop / prevVol) > 0.35) {
                         maxDrop = drop;
-                        shiftWeek = `${w} (dropped from ${prevVol} to ${vol} msgs)`;
+                        shiftWeekKey = w;
                     }
                 }
-            }
+            });
+
+            let peakDateRange = getWeekDateRange(peakWeekKey);
+            let shiftDateRange = shiftWeekKey ? getWeekDateRange(shiftWeekKey) : "Stable / Consistent flow";
 
             statsGrid.innerHTML = '';
 
@@ -705,12 +726,10 @@
                     : 0;
                 let latencyText = avgLatencyMins < 60 ? `${avgLatencyMins} mins` : `${(avgLatencyMins/60).toFixed(1)} hours`;
 
-                // Find peak communication window
                 let windows = timeWindows[sender];
                 let peakWin = Object.keys(windows).reduce((a, b) => windows[a] > windows[b] ? a : b);
                 let peakWinText = peakWin === 'lateNight' ? 'Late Night (10pm-6am)' : peakWin.charAt(0).toUpperCase() + peakWin.slice(1);
 
-                // Topic carrying / Follow-up score
                 let openerCount = morningFollowUps[sender].openers;
                 let carriedCount = morningFollowUps[sender].carriedAfter;
                 let carryScore = openerCount > 0 ? Math.round((carriedCount / openerCount) * 100) : 50;
@@ -722,9 +741,11 @@
                     patternTag = "Avoidant Pattern (Delayed, minimal responses)";
                 }
 
+                let displayName = (sender === currentUser) ? `You (${sender})` : sender;
+
                 statsGrid.innerHTML += `
                     <div class="stat-card">
-                        <h4>Audit Profile (${sender})</h4>
+                        <h4>Audit Profile (${displayName})</h4>
                         <div class="stat-value">${count.toLocaleString()} msgs (${pct}%)</div>
                         <div class="stat-desc" style="margin-top:6px;">
                             Started day first: <strong>${starts} times (${startPct}%)</strong><br>
@@ -735,7 +756,7 @@
                             Low-Effort Morning Check-ins: <strong>${breadcrumbs}</strong><br>
                             Topic Carrying Score: <strong>${carryScore}% follow-through</strong><br>
                             Peak Comm Window: <strong>${peakWinText}</strong><br>
-                            Calls: <strong>${cTotal}</strong> (${cCompleted} completed, ${cMissed} missed)<br>
+                            Calls Initiated: <strong>${cTotal}</strong> (${cCompleted} completed, ${cMissed} missed)<br>
                             <span style="color: var(--jade-primary);">Style Dynamic: ${patternTag}</span>
                         </div>
                     </div>
@@ -746,19 +767,19 @@
 
             statsGrid.innerHTML += `
                 <div class="stat-card alert">
-                    <h4>Exact Energy Shift Detected</h4>
-                    <div class="stat-value">${shiftWeek}</div>
-                    <div class="stat-desc">Pinpoints the exact week engagement and communication momentum sharply declined.</div>
+                    <h4>Exact Energy Shift Date Range</h4>
+                    <div class="stat-value">${shiftDateRange}</div>
+                    <div class="stat-desc">Pinpoints the exact timeframe engagement and communication momentum sharply declined.</div>
                 </div>
                 <div class="stat-card alert">
                     <h4>Longest Silent Streak</h4>
                     <div class="stat-value">${silentStreakDisplay}</div>
-                    <div class="stat-desc">Maximum gap where chat went completely dead, highlighting sudden withdrawals.</div>
+                    <div class="stat-desc">Maximum gap where chat went completely dead. Last message sent by: <strong>${lastSenderBeforeSilence}</strong></div>
                 </div>
                 <div class="stat-card">
-                    <h4>Peak Energy Period</h4>
-                    <div class="stat-value">${peakWeek}</div>
-                    <div class="stat-desc">Highest activity recorded at <strong>${maxVol}</strong> messages in this window.</div>
+                    <h4>Peak Energy Date Range</h4>
+                    <div class="stat-value">${peakDateRange}</div>
+                    <div class="stat-desc">Highest activity window recorded at <strong>${maxVol}</strong> messages.</div>
                 </div>
                 <div class="stat-card">
                     <h4>Timeframe Scope</h4>
@@ -774,6 +795,27 @@
             var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
             var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
             return weekNo;
+        }
+
+        function getWeekDateRange(weekStr) {
+            if (!weekStr || !weekStr.includes('-W')) return weekStr;
+            let parts = weekStr.split('-W');
+            let year = parseInt(parts[0]);
+            let week = parseInt(parts[1]);
+
+            let simple = new Date(year, 0, 1 + (week - 1) * 7);
+            let dow = simple.getDay();
+            let ISOweekStart = new Date(simple);
+            if (dow <= 4)
+                ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+            else
+                ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+
+            let ISOweekEnd = new Date(ISOweekStart);
+            ISOweekEnd.setDate(ISOweekStart.getDate() + 6);
+
+            const options = { month: 'short', day: 'numeric', year: 'numeric' };
+            return `${ISOweekStart.toLocaleDateString('en-US', options)} – ${ISOweekEnd.toLocaleDateString('en-US', options)}`;
         }
     </script>
 </body>
