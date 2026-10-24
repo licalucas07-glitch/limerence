@@ -6,425 +6,358 @@
     <title>unlinked: Limerence | Relationship Audit</title>
     <style>
         :root {
-            --bg-dark: #0f172a;
-            --card-bg: #1e293b;
-            --accent-gold: #f59e0b;
-            --accent-rose: #f43f5e;
+            --bg-dark: #0a0f1d;
+            --card-bg: #131c31;
+            --card-border: #1e293b;
+            --accent-primary: #f43f5e;
+            --accent-glow: rgba(244, 63, 94, 0.15);
+            --accent-indigo: #6366f1;
             --text-light: #f8fafc;
             --text-muted: #94a3b8;
-            --border-color: #334155;
+            --success: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg-dark);
             color: var(--text-light);
-            margin: 0;
-            padding: 20px;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;
+            justify-content: flex-start;
+            padding: 40px 20px;
         }
 
         .container {
             max-width: 800px;
             width: 100%;
-        }
-
-        .header {
             text-align: center;
-            margin-bottom: 30px;
         }
 
-        .brand-badge {
-            display: inline-block;
-            background: rgba(244, 63, 94, 0.1);
-            color: var(--accent-rose);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            margin-bottom: 10px;
-            border: 1px solid rgba(244, 63, 94, 0.2);
-        }
-
-        h1 {
+        header h1 {
             font-size: 2.5rem;
-            margin: 0 0 10px 0;
-            background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .highlight-gold {
-            color: var(--accent-gold);
-            -webkit-text-fill-color: var(--accent-gold);
+        header h1 span {
+            background: linear-gradient(135deg, var(--accent-primary) default, #fb7185 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .highlight-rose {
-            color: var(--accent-rose);
-            -webkit-text-fill-color: var(--accent-rose);
-        }
-
-        p.subtitle {
+        header p {
             color: var(--text-muted);
-            font-size: 1.05rem;
-            max-width: 600px;
-            margin: 0 auto;
+            font-size: 1.1rem;
+            margin-bottom: 40px;
             line-height: 1.5;
         }
 
-        .card {
+        /* Dropzone Styling */
+        .dropzone {
             background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 20px;
+            border: 2px dashed var(--accent-indigo);
+            border-radius: 16px;
+            padding: 50px 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
         }
 
-        .upload-zone {
-            border: 2px dashed var(--border-color);
-            border-radius: 8px;
-            padding: 40px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: border-color 0.2s, background 0.2s;
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--accent-primary);
+            background-color: #17233f;
+            box-shadow: 0 0 20px var(--accent-glow);
         }
 
-        .upload-zone:hover {
-            border-color: var(--accent-gold);
-            background: rgba(245, 158, 11, 0.02);
+        .dropzone-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
         }
 
-        .btn-upload {
-            background-color: var(--accent-gold);
-            color: #000;
+        .dropzone h3 {
+            font-size: 1.25rem;
+            margin-bottom: 8px;
+            color: var(--text-light);
+        }
+
+        .dropzone p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--accent-primary), #e11d48);
+            color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
+            padding: 12px 28px;
+            font-size: 1rem;
             font-weight: 600;
+            border-radius: 8px;
             cursor: pointer;
-            margin-top: 15px;
+            transition: transform 0.2s ease, opacity 0.2s ease;
         }
 
-        .hidden { display: none; }
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
 
-        .results-grid {
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Error Banner */
+        #error-banner {
+            display: none;
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            padding: 14px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 0.95rem;
+            text-align: left;
+        }
+
+        /* Results Panel */
+        #results-container {
+            display: none;
+            margin-top: 30px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: left;
+        }
+
+        #results-container h2 {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            color: var(--text-light);
+        }
+
+        .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
             margin-top: 20px;
         }
 
-        .metric-card {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid var(--border-color);
+        .stat-card {
+            background: var(--bg-dark);
             padding: 16px;
-            border-radius: 8px;
+            border-radius: 10px;
+            border: 1px solid var(--card-border);
         }
 
-        .metric-title {
+        .stat-card h4 {
             color: var(--text-muted);
             font-size: 0.85rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
-        .metric-value {
-            font-size: 1.6rem;
+        .stat-card p {
+            font-size: 1.5rem;
             font-weight: 700;
-        }
-
-        .cta-banner {
-            background: linear-gradient(135deg, rgba(244,63,94,0.15) 0%, rgba(245,158,11,0.15) 100%);
-            border: 1px solid rgba(244,63,94,0.3);
-            text-align: center;
-            padding: 30px;
-            border-radius: 12px;
-            margin-top: 30px;
-        }
-
-        .cta-button {
-            display: inline-block;
-            background: var(--accent-rose);
-            color: white;
-            padding: 12px 28px;
-            border-radius: 30px;
-            text-decoration: none;
-            font-weight: 700;
-            margin-top: 15px;
-            transition: transform 0.2s;
-        }
-
-        .cta-button:hover { transform: scale(1.05); }
-
-        .filter-controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .filter-btn {
-            background: var(--bg-dark);
-            border: 1px solid var(--border-color);
             color: var(--text-light);
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .filter-btn.active {
-            border-color: var(--accent-gold);
-            color: var(--accent-gold);
-            background: rgba(245, 158, 11, 0.1);
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header">
-        <div class="brand-badge">unlinked: LIMERENCE</div>
-        <h1>Turn romantic obsession into <span class="highlight-gold">objective</span> <span class="highlight-rose">reality</span>.</h1>
-        <p class="subtitle">Stop over-analyzing mixed signals. Upload your WhatsApp chat log to audit reciprocity, detect low-effort patterns, and uncover the exact week the energy shifted.</p>
-    </div>
+    <div class="container">
+        <header>
+            <h1>Turn romantic chaos into <span>objective reality.</span></h1>
+            <p>Stop over-analyzing mixed signals. Upload your WhatsApp chat log to audit reciprocity, detect low-effort patterns, and uncover the exact week the energy shifted.</p>
+        </header>
 
-    <div class="card" id="upload-card">
-        <div class="upload-zone" onclick="document.getElementById('file-input').click()">
-            <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin: auto; display: block; color: var(--text-muted);"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-            <p style="margin-top: 15px; font-weight: 500;">Drag and drop your WhatsApp <code style="color:var(--accent-rose);">_chat.txt</code> file here</p>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Export without media from WhatsApp settings.</p>
-            <button class="btn-upload">Select File</button>
-            <input type="file" id="file-input" class="hidden" accept=".txt">
+        <!-- Dropzone Box -->
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click();">
+            <div class="dropzone-icon">📁</div>
+            <h3>Drag and drop your WhatsApp <code>_chat.txt</code> file here</h3>
+            <p>Export without media from WhatsApp settings on any device or language.</p>
+            <button class="btn" type="button">Select File</button>
+            <input type="file" id="fileInput" accept=".txt">
         </div>
-    </div>
 
-    <div id="results-section" class="hidden">
-        <div class="card">
-            <h3>Select Audit Range</h3>
-            <div class="filter-controls">
-                <button class="filter-btn active" onclick="applyFilter('all')">Full History</button>
-                <button class="filter-btn" onclick="applyFilter('last60')">Recent Dynamics (Last 60 Days)</button>
+        <!-- Error Message Display -->
+        <div id="error-banner"></div>
+
+        <!-- Results Display -->
+        <div id="results-container">
+            <h2>Audit Results Summary</h2>
+            <p id="chat-overview" style="color: var(--text-muted);"></p>
+            <div class="stats-grid" id="stats-grid">
+                <!-- Dynamically filled stats -->
             </div>
         </div>
-
-        <div class="card">
-            <h3>Reciprocity & Effort Audit</h3>
-            <div class="results-grid">
-                <div class="metric-card">
-                    <div class="metric-title">Total Messages</div>
-                    <div class="metric-value" id="total-msgs">0</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Daily Initiator Ratio</div>
-                    <div class="metric-value" id="initiation-ratio" style="color:var(--accent-gold);">0% / 0%</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Avg Reply Delay</div>
-                    <div class="metric-value" id="reply-delays">-- / --</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Low-Effort Morning Openers</div>
-                    <div class="metric-value" id="morning-openers" style="color:var(--accent-rose);">0</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Topic Carrying Score</div>
-                    <div class="metric-value" id="word-ratio">--</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Longest Silent Streak</div>
-                    <div class="metric-value" id="silent-streak">0 hrs</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="cta-banner">
-            <h2>Clarity is step one. Reclaiming your peace is step two.</h2>
-            <p style="color: var(--text-muted); max-width: 500px; margin: 10px auto;">Stop chasing the past. Begin your structured 90-day recovery with <strong>unlinked</strong>.</p>
-            <a href="#" class="cta-button">Start Your 90-Day Unlinking Journey</a>
-        </div>
     </div>
-</div>
 
-<script>
-let parsedMessages = [];
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const errorBanner = document.getElementById('error-banner');
+        const resultsContainer = document.getElementById('results-container');
+        const chatOverview = document.getElementById('chat-overview');
+        const statsGrid = document.getElementById('stats-grid');
 
-document.getElementById('file-input').addEventListener('change', handleFile);
+        // Drag & Drop event handlers
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            }, false);
+        });
 
-function handleFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+            }, false);
+        });
 
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        parseWhatsAppText(event.target.result);
-    };
-    reader.readAsText(file);
-}
+        dropzone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
 
-function parseWhatsAppText(text) {
-    const lines = text.split('\n');
-    parsedMessages = [];
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
 
-    // Universal regex patterns for various WhatsApp export formats
-    const regexes = [
-        // [DD/MM/YY, HH:MM:SS] Sender: Message (iOS bracketed)
-        /^\[(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AP]M)?)\]\s+([^:]+):\s+(.*)$/i,
-        // DD/MM/YY, HH:MM - Sender: Message (Android standard)
-        /^(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}),?\s+(\d{1,2}:\d{2}(?:\s?[AP]M)?)\s+-\s+([^:]+):\s+(.*)$/i,
-        // MM/DD/YY, HH:MM AM/PM: Sender: Message (US format)
-        /^(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?(?:\s?[AP]M)?):\s+([^:]+):\s+(.*)$/i
-    ];
+        function showError(message) {
+            errorBanner.style.display = 'block';
+            errorBanner.textContent = message;
+            resultsContainer.style.display = 'none';
+        }
 
-    let currentMsg = null;
+        function handleFile(file) {
+            errorBanner.style.display = 'none';
+            const reader = new FileReader();
 
-    for (let line of lines) {
-        line = line.trim();
-        if (!line) continue;
+            reader.onload = function(e) {
+                const content = e.target.result;
+                const messages = parseWhatsAppChat(content);
 
-        let matched = false;
-
-        for (let regex of regexes) {
-            const match = line.match(regex);
-            if (match) {
-                if (currentMsg) parsedMessages.push(currentMsg);
-
-                const rawDate = match[1];
-                const rawTime = match[2];
-                const sender = match[3].trim();
-                const content = match[4].trim();
-
-                // Skip system notification messages
-                if (sender.includes("Messages and calls are end-to-end encrypted") || sender.includes("created group")) {
-                    matched = true;
-                    currentMsg = null;
-                    break;
+                if (messages.length === 0) {
+                    showError("Could not parse any valid messages. Please verify the file is an exported WhatsApp chat text file.");
+                    return;
                 }
 
-                currentMsg = {
-                    dateStr: rawDate,
-                    timeStr: rawTime,
-                    sender: sender,
-                    text: content,
-                    timestamp: parseDate(rawDate, rawTime)
-                };
-                matched = true;
-                break;
+                displayResults(messages);
+            };
+
+            reader.onerror = function() {
+                showError("Error reading file. Please try again.");
+            };
+
+            reader.readAsText(file);
+        }
+
+        /**
+         * Universal WhatsApp Chat Parser
+         * Supports global formats (iOS & Android, brackets or dashes, any language/characters)
+         */
+        function parseWhatsAppChat(fileContent) {
+            const patterns = [
+                // 1. Bracketed format with 4-digit year first: [YYYY/MM/DD, HH:MM:SS] Sender: Message
+                /^\[(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2}(?:\:\d{2})?)\]\s+([^:]+):\s+([\s\S]*)$/,
+                
+                // 2. Bracketed standard international/US: [DD/MM/YYYY, HH:MM:SS AM/PM] Sender: Message
+                /^\[(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\:\d{2})?(?:\s?[APap][Mm])?)\]\s+([^:]+):\s+([\s\S]*)$/,
+
+                // 3. Android style with dash: DD/MM/YYYY, HH:MM - Sender: Message
+                /^(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\s?[APap][Mm])?)\s+-\s+([^:]+):\s+([\s\S]*)$/,
+
+                // 4. Android style with dash and 4-digit year first: YYYY-MM-DD HH:MM - Sender: Message
+                /^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2})\s+-\s+([^:]+):\s+([\s\S]*)$/
+            ];
+
+            const lines = fileContent.split('\n');
+            let messages = [];
+            let currentMessage = null;
+
+            lines.forEach(line => {
+                let matched = false;
+
+                for (let pattern of patterns) {
+                    const match = line.match(pattern);
+                    if (match) {
+                        if (currentMessage) {
+                            messages.push(currentMessage);
+                        }
+                        currentMessage = {
+                            timestamp: match[1].trim(),
+                            sender: match[2].trim(),
+                            text: match[3]
+                        };
+                        matched = true;
+                        break;
+                    }
+                }
+
+                // Handle multi-line messages
+                if (!matched && currentMessage) {
+                    currentMessage.text += '\n' + line;
+                }
+            });
+
+            if (currentMessage) {
+                messages.push(currentMessage);
             }
+
+            return messages;
         }
 
-        // Multiline messages support
-        if (!matched && currentMsg) {
-            currentMsg.text += " " + line;
+        function displayResults(messages) {
+            resultsContainer.style.display = 'block';
+
+            // Count messages per sender
+            const senders = {};
+            messages.forEach(msg => {
+                senders[msg.sender] = (senders[msg.sender] || 0) + 1;
+            });
+
+            const senderKeys = Object.keys(senders);
+            chatOverview.textContent = `Successfully parsed ${messages.length} messages between ${senderKeys.join(' and ')}.`;
+
+            statsGrid.innerHTML = '';
+            senderKeys.forEach(sender => {
+                statsGrid.innerHTML += `
+                    <div class="stat-card">
+                        <h4>Messages (${sender})</h4>
+                        <p>${senders[sender]}</p>
+                    </div>
+                `;
+            });
+
+            statsGrid.innerHTML += `
+                <div class="stat-card">
+                    <h4>Total Messages</h4>
+                    <p>${messages.length}</p>
+                </div>
+            `;
         }
-    }
-
-    if (currentMsg) parsedMessages.push(currentMsg);
-
-    if (parsedMessages.length === 0) {
-        alert("Could not parse any valid messages. Please verify the file is an exported WhatsApp chat text file.");
-        return;
-    }
-
-    document.getElementById('upload-card').classList.add('hidden');
-    document.getElementById('results-section').classList.remove('hidden');
-
-    calculateMetrics(parsedMessages);
-}
-
-function parseDate(dateStr, timeStr) {
-    try {
-        const parts = dateStr.split(/[\/\.-]/);
-        let day, month, year;
-
-        if (parts[0].length === 4) {
-            year = parseInt(parts[0]); month = parseInt(parts[1]) - 1; day = parseInt(parts[2]);
-        } else {
-            day = parseInt(parts[0]); month = parseInt(parts[1]) - 1; year = parseInt(parts[2]);
-            if (year < 100) year += 2000;
-        }
-
-        return new Date(year, month, day);
-    } catch(e) {
-        return new Date();
-    }
-}
-
-function calculateMetrics(msgs) {
-    if (msgs.length === 0) return;
-
-    // Identify senders
-    const senders = [...new Set(msgs.map(m => m.sender))];
-    if (senders.length < 2) {
-        alert("Found messages from only one sender. Audit requires a two-person chat export.");
-        return;
-    }
-
-    const p1 = senders[0];
-    const p2 = senders[1];
-
-    let p1Msgs = msgs.filter(m => m.sender === p1);
-    let p2Msgs = msgs.filter(m => m.sender === p2);
-
-    document.getElementById('total-msgs').innerText = msgs.length.toLocaleString();
-
-    // Word counts
-    let p1Words = p1Msgs.reduce((acc, m) => acc + m.text.split(' ').length, 0);
-    let p2Words = p2Msgs.reduce((acc, m) => acc + m.text.split(' ').length, 0);
-
-    let totalWords = p1Words + p2Words;
-    let p1WordPct = totalWords > 0 ? Math.round((p1Words / totalWords) * 100) : 50;
-    let p2WordPct = 100 - p1WordPct;
-
-    document.getElementById('word-ratio').innerText = `${p1WordPct}% (${p1.split(' ')[0]}) / ${p2WordPct}% (${p2.split(' ')[0]})`;
-
-    // Low-effort morning openers (< 6 words between 6 AM and 10 AM)
-    let morningCount = 0;
-    msgs.forEach(m => {
-        const lower = m.text.toLowerCase();
-        if ((lower.includes('good morning') || lower.includes('morning') || lower.includes('gm')) && m.text.split(' ').length <= 5) {
-            morningCount++;
-        }
-    });
-
-    document.getElementById('morning-openers').innerText = morningCount;
-
-    // Daily Initiator Ratios
-    let initiations = { [p1]: 0, [p2]: 0 };
-    let lastMsgTime = null;
-
-    msgs.forEach(m => {
-        if (!lastMsgTime || (m.timestamp - lastMsgTime) > (6 * 60 * 60 * 1000)) {
-            initiations[m.sender] = (initiations[m.sender] || 0) + 1;
-        }
-        lastMsgTime = m.timestamp;
-    });
-
-    let totalInits = initiations[p1] + initiations[p2];
-    let p1InitPct = totalInits > 0 ? Math.round((initiations[p1] / totalInits) * 100) : 50;
-    let p2InitPct = 100 - p1InitPct;
-
-    document.getElementById('initiation-ratio').innerText = `${p1InitPct}% / ${p2InitPct}%`;
-}
-
-function applyFilter(type) {
-    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-
-    if (type === 'last60') {
-        const sixtyDaysAgo = new Date();
-        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-        const filtered = parsedMessages.filter(m => m.timestamp >= sixtyDaysAgo);
-        calculateMetrics(filtered);
-    } else {
-        calculateMetrics(parsedMessages);
-    }
-}
-</script>
-
+    </script>
 </body>
 </html>
