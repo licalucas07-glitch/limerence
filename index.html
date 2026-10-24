@@ -320,6 +320,7 @@
 
     <script>
         let globalMessages = [];
+        let globalCalls = [];
         let minFileDate = null;
         let maxFileDate = null;
 
@@ -379,24 +380,27 @@
 
             reader.onload = function(e) {
                 const content = e.target.result;
-                globalMessages = parseWhatsAppChat(content);
+                const parsedData = parseWhatsAppChat(content);
+                globalMessages = parsedData.messages;
+                globalCalls = parsedData.calls;
 
-                if (globalMessages.length === 0) {
-                    showError("Could not parse any valid messages. Please verify the file is an exported WhatsApp chat text file.");
+                if (globalMessages.length === 0 && globalCalls.length === 0) {
+                    showError("Could not parse any valid messages or calls. Please verify the file is an exported WhatsApp chat text file.");
                     return;
                 }
 
-                minFileDate = globalMessages[0].dateObj;
-                maxFileDate = globalMessages[globalMessages.length - 1].dateObj;
+                let allDates = [...globalMessages.map(m => m.dateObj), ...globalCalls.map(c => c.dateObj)];
+                allDates.sort((a, b) => a - b);
+
+                minFileDate = allDates[0];
+                maxFileDate = allDates[allDates.length - 1];
 
                 startDateInput.min = minFileDate.toISOString().split('T')[0];
                 startDateInput.max = maxFileDate.toISOString().split('T')[0];
                 endDateInput.min = minFileDate.toISOString().split('T')[0];
                 endDateInput.max = maxFileDate.toISOString().split('T')[0];
 
-                // Default to full range
                 setPresetAll();
-
                 filterSection.style.display = 'block';
                 runFilteredAudit();
             };
@@ -427,20 +431,48 @@
         }
 
         function parseWhatsAppChat(fileContent) {
-            const patterns = [
+            const msgPatterns = [
                 /^\[(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2}(?:\:\d{2})?)\]\s+([^:]+):\s+([\s\S]*)$/,
                 /^\[(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\:\d{2})?(?:\s?[APap][Mm])?)\]\s+([^:]+):\s+([\s\S]*)$/,
                 /^(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\s?[APap][Mm])?)\s+-\s+([^:]+):\s+([\s\S]*)$/,
                 /^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2})\s+-\s+([^:]+):\s+([\s\S]*)$/
             ];
 
+            const callPatterns = [
+                /^\[(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2}(?:\:\d{2})?)\]\s+([^:]+):\s+(Missed.*call|.*call.*duration.*)$/i,
+                /^\[(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\:\d{2})?(?:\s?[APap][Mm])?)\]\s+([^:]+):\s+(Missed.*call|.*call.*duration.*)$/i,
+                /^(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\s?[APap][Mm])?)\s+-\s+([^:]+):\s+(Missed.*call|.*call.*duration.*)$/i,
+                /^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2})\s+-\s+([^:]+):\s+(Missed.*call|.*call.*duration.*)$/i
+            ];
+
             const lines = fileContent.split('\n');
             let messages = [];
+            let calls = [];
             let currentMessage = null;
 
             lines.forEach(line => {
-                let matched = false;
-                for (let pattern of patterns) {
+                let matchedCall = false;
+                for (let pattern of callPatterns) {
+                    const match = line.match(pattern);
+                    if (match) {
+                        let isMissed = /missed/i.test(match[3]);
+                        calls.push({
+                            rawTimestamp: match[1].trim(),
+                            dateObj: parseTimestamp(match[1].trim()),
+                            caller: match[2].trim(),
+                            text: match[3],
+                            missed: isMissed
+                        });
+                        matchedCall = true;
+                        currentMessage = null;
+                        break;
+                    }
+                }
+
+                if (matchedCall) return;
+
+                let matchedMsg = false;
+                for (let pattern of msgPatterns) {
                     const match = line.match(pattern);
                     if (match) {
                         if (currentMessage) {
@@ -452,12 +484,12 @@
                             sender: match[2].trim(),
                             text: match[3]
                         };
-                        matched = true;
+                        matchedMsg = true;
                         break;
                     }
                 }
 
-                if (!matched && currentMessage) {
+                if (!matchedMsg && currentMessage) {
                     currentMessage.text += '\n' + line;
                 }
             });
@@ -466,7 +498,7 @@
                 messages.push(currentMessage);
             }
 
-            return messages;
+            return { messages, calls };
         }
 
         function parseTimestamp(tsStr) {
@@ -492,17 +524,13 @@
             const endLimit = new Date(endDateInput.value);
             endLimit.setHours(23, 59, 59, 999);
 
-            const filtered = globalMessages.filter(m => m.dateObj >= startLimit && m.dateObj <= endLimit);
+            const filteredMessages = globalMessages.filter(m => m.dateObj >= startLimit && m.dateObj <= endLimit);
+            const filteredCalls = globalCalls.filter(c => c.dateObj >= startLimit && c.dateObj <= endLimit);
 
-            if (filtered.length === 0) {
-                showError("No messages found in the selected date range.");
-                return;
-            }
-
-            runAuditAnalytics(filtered);
+            runAuditAnalytics(filteredMessages, filteredCalls);
         }
 
-        function runAuditAnalytics(messages) {
+        function runAuditAnalytics(messages, calls) {
             resultsContainer.style.display = 'block';
 
             const senders = {};
@@ -510,18 +538,35 @@
                 senders[msg.sender] = (senders[msg.sender] || 0) + 1;
             });
 
+            calls.forEach(c => {
+                if (!senders[c.caller]) senders[c.caller] = 0;
+            });
+
             const senderKeys = Object.keys(senders);
             const totalMessages = messages.length;
             
-            chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages across ${senderKeys.join(' & ')} within the selected timeframe.`;
+            chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages and ${calls.length} calls across ${senderKeys.join(' & ')} within the selected timeframe.`;
 
             let responseTimes = {};
             senderKeys.forEach(s => responseTimes[s] = []);
             let dailyInitiators = {};
-            let morningOpeners = {};
+            let lowEffortOpeners = {};
+            let callStats = {};
             senderKeys.forEach(s => {
                 dailyInitiators[s] = 0;
-                morningOpeners[s] = 0;
+                lowEffortOpeners[s] = 0;
+                callStats[s] = { total: 0, missed: 0, completed: 0 };
+            });
+
+            calls.forEach(c => {
+                if (callStats[c.caller]) {
+                    callStats[c.caller].total++;
+                    if (c.missed) {
+                        callStats[c.caller].missed++;
+                    } else {
+                        callStats[c.caller].completed++;
+                    }
+                }
             });
 
             let activeDays = new Set();
@@ -540,7 +585,7 @@
                 let hour = msg.dateObj.getHours();
                 let wordCount = msg.text.trim().split(/\s+/).length;
                 if (hour >= 6 && hour < 10 && wordCount <= 5) {
-                    morningOpeners[msg.sender] = (morningOpeners[msg.sender] || 0) + 1;
+                    lowEffortOpeners[msg.sender] = (lowEffortOpeners[msg.sender] || 0) + 1;
                 }
 
                 if (i > 0) {
@@ -562,63 +607,4 @@
             let totalDaysCount = activeDays.size || 1;
 
             let weeks = Object.keys(weeklyVolume).sort();
-            let peakWeek = "N/A";
-            let maxVol = 0;
-            weeks.forEach(w => {
-                if (weeklyVolume[w] > maxVol) {
-                    maxVol = weeklyVolume[w];
-                    peakWeek = w;
-                }
-            });
-
-            statsGrid.innerHTML = '';
-
-            senderKeys.forEach(sender => {
-                let count = senders[sender];
-                let pct = ((count / totalMessages) * 100).toFixed(1);
-                let starts = dailyInitiators[sender] || 0;
-                let startPct = ((starts / totalDaysCount) * 100).toFixed(1);
-                let breadcrumbs = morningOpeners[sender] || 0;
-
-                let avgLatencyMins = responseTimes[sender].length > 0 
-                    ? Math.round(responseTimes[sender].reduce((a, b) => a + b, 0) / responseTimes[sender].length) 
-                    : 0;
-                let latencyText = avgLatencyMins < 60 ? `${avgLatencyMins} mins` : `${(avgLatencyMins/60).toFixed(1)} hours`;
-
-                statsGrid.innerHTML += `
-                    <div class="stat-card">
-                        <h4>Audit Profile (${sender})</h4>
-                        <div class="stat-value">${count.toLocaleString()} msgs (${pct}%)</div>
-                        <div class="stat-desc" style="margin-top:6px;">
-                            Started day: <strong>${starts} times (${startPct}%)</strong><br>
-                            Avg Reply Time: <strong>${latencyText}</strong><br>
-                            Morning Openers: <strong>${breadcrumbs}</strong>
-                        </div>
-                    </div>
-                `;
-            });
-
-            statsGrid.innerHTML += `
-                <div class="stat-card">
-                    <h4>Peak Energy Period</h4>
-                    <div class="stat-value">${peakWeek}</div>
-                    <div class="stat-desc">Highest activity recorded at <strong>${maxVol}</strong> messages in this window.</div>
-                </div>
-                <div class="stat-card">
-                    <h4>Timeframe Scope</h4>
-                    <div class="stat-value">${totalDaysCount} Active Days</div>
-                    <div class="stat-desc">Filtered scope covers <strong>${messages.length.toLocaleString()} messages</strong>.</div>
-                </div>
-            `;
-        }
-
-        function getWeekNumber(d) {
-            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
-            var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-            var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
-            return weekNo;
-        }
-    </script>
-</body>
-</html>
+            let
