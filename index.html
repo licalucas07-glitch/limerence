@@ -488,14 +488,15 @@
                         let text = match[3].trim();
                         let textLower = text.toLowerCase();
 
-                        // Detect if line is a call (supports English, Afrikaans, etc. keywords)
+                        // Detect calls (including "No answer", "Gemiste oudio-oproep", durations, etc.)
                         let isCall = textLower.includes('call') || textLower.includes('oproep') || 
                                      textLower.includes('min') || textLower.includes('sec') || 
                                      textLower.includes('duur') || textLower.includes('missed') || 
-                                     textLower.includes('gemiste');
+                                     textLower.includes('gemiste') || textLower.includes('no answer') || 
+                                     textLower.includes('geen antwoord');
 
                         if (isCall) {
-                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste');
+                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste') || textLower.includes('no answer') || textLower.includes('geen antwoord');
                             calls.push({
                                 rawTimestamp: timestamp,
                                 dateObj: parseTimestamp(timestamp),
@@ -592,19 +593,38 @@
                 doubleTexts[s] = 0;
                 questionCounts[s] = 0;
                 wordCounts[s] = [];
-                callStats[s] = { total: 0, missed: 0, completed: 0 };
+                // Separating initiated, returned, and missed calls
+                callStats[s] = { initiated: 0, returned: 0, missed: 0, total: 0 };
                 timeWindows[s] = { morning: 0, afternoon: 0, evening: 0, lateNight: 0 };
                 morningFollowUps[s] = { openers: 0, carriedAfter: 0 };
             });
 
-            calls.forEach(c => {
-                if (callStats[c.caller]) {
-                    callStats[c.caller].total++;
-                    if (c.missed) {
-                        callStats[c.caller].missed++;
-                    } else {
-                        callStats[c.caller].completed++;
+            // Smart Call Classification: Check if a call was a returned call (called back within 30 mins of a missed call from the other person)
+            calls.forEach((c, idx) => {
+                if (!callStats[c.caller]) return;
+
+                if (c.missed) {
+                    callStats[c.caller].missed++;
+                } else {
+                    // Check backwards to see if there was a missed call from the *other* person within the last 30 minutes
+                    let isReturned = false;
+                    for (let p = idx - 1; p >= 0; p--) {
+                        let prevCall = calls[p];
+                        let timeDiffMins = (c.dateObj - prevCall.dateObj) / (1000 * 60);
+                        if (timeDiffMins > 30) break; // Exceeds window
+
+                        if (prevCall.caller !== c.caller && prevCall.missed) {
+                            isReturned = true;
+                            break;
+                        }
                     }
+
+                    if (isReturned) {
+                        callStats[c.caller].returned++;
+                    } else {
+                        callStats[c.caller].initiated++;
+                    }
+                    callStats[c.caller].total++;
                 }
             });
 
@@ -613,6 +633,7 @@
             let weeklyVolume = {};
             let maxSilentHours = 0;
             let lastSenderBeforeSilence = "N/A";
+            let breakerOfSilence = "N/A";
 
             messages.forEach((msg, i) => {
                 let dayStr = msg.dateObj.toISOString().split('T')[0];
@@ -657,7 +678,8 @@
                     let diffHours = (msg.dateObj - prev.dateObj) / (1000 * 60 * 60);
                     if (diffHours > maxSilentHours) {
                         maxSilentHours = diffHours;
-                        lastSenderBeforeSilence = prev.sender;
+                        lastSenderBeforeSilence = prev.sender; // Who left them hanging
+                        breakerOfSilence = msg.sender;       // Who made contact again to end streak
                     }
 
                     if (msg.sender === prev.sender) {
@@ -713,9 +735,10 @@
                 let breadcrumbs = lowEffortOpeners[sender] || 0;
                 let doubles = doubleTexts[sender] || 0;
                 let questions = questionCounts[sender] || 0;
-                let cTotal = callStats[sender] ? callStats[sender].total : 0;
+                
+                let cInitiated = callStats[sender] ? callStats[sender].initiated : 0;
+                let cReturned = callStats[sender] ? callStats[sender].returned : 0;
                 let cMissed = callStats[sender] ? callStats[sender].missed : 0;
-                let cCompleted = callStats[sender] ? callStats[sender].completed : 0;
 
                 let avgWords = wordCounts[sender].length > 0 
                     ? Math.round(wordCounts[sender].reduce((a, b) => a + b, 0) / wordCounts[sender].length) 
@@ -756,7 +779,9 @@
                             Low-Effort Morning Check-ins: <strong>${breadcrumbs}</strong><br>
                             Topic Carrying Score: <strong>${carryScore}% follow-through</strong><br>
                             Peak Comm Window: <strong>${peakWinText}</strong><br>
-                            Calls Initiated: <strong>${cTotal}</strong> (${cCompleted} completed, ${cMissed} missed)<br>
+                            Calls Initiated: <strong>${cInitiated}</strong> (Proactive)<br>
+                            Calls Returned: <strong>${cReturned}</strong> (After missed)<br>
+                            Calls Missed/No Answer: <strong>${cMissed}</strong><br>
                             <span style="color: var(--jade-primary);">Style Dynamic: ${patternTag}</span>
                         </div>
                     </div>
@@ -774,7 +799,11 @@
                 <div class="stat-card alert">
                     <h4>Longest Silent Streak</h4>
                     <div class="stat-value">${silentStreakDisplay}</div>
-                    <div class="stat-desc">Maximum gap where chat went completely dead. Last message sent by: <strong>${lastSenderBeforeSilence}</strong></div>
+                    <div class="stat-desc">
+                        Maximum gap where chat went dead.<br>
+                        Left hanging by: <strong>${lastSenderBeforeSilence}</strong><br>
+                        Broke the silence: <strong>${breakerOfSilence}</strong>
+                    </div>
                 </div>
                 <div class="stat-card">
                     <h4>Peak Energy Date Range</h4>
