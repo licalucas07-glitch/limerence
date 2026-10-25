@@ -209,7 +209,6 @@
             background-color: var(--jade-glow);
         }
 
-        /* Completely hidden native input overlaying the dropzone for perfect clicking */
         input[type="file"] {
             position: absolute;
             top: 0;
@@ -490,8 +489,8 @@
                         <p>Proactive calls initiated out of the blue versus calls returned after missing an incoming call prompt.</p>
                     </div>
                     <div class="glossary-item">
-                        <h5>Calls Placed & Missed</h5>
-                        <p>Shows outbound calls placed by a participant that went unanswered by the other person, with exact names specified.</p>
+                        <h5>Messages Deleted</h5>
+                        <p>Tracks how many messages a participant retracted/deleted from the chat, often signaling anxious over-editing.</p>
                     </div>
                     <div class="glossary-item">
                         <h5>Avg Call Return Speed</h5>
@@ -686,15 +685,19 @@
                                           textLower.includes('.opus') ||
                                           textLower.includes('.m4a');
 
-                        let isCall = !isVoiceNote && (
-                                     textLower.includes('call') || textLower.includes('oproep') || 
-                                     textLower.includes('missed') || textLower.includes('gemiste') || 
-                                     textLower.includes('no answer'));
+                        // Strict check: Only count official WhatsApp system call log notices, not casual text conversation mentioning "call"
+                        let isSystemCall = !isVoiceNote && (
+                                           textLower.includes('missed voice call') || 
+                                           textLower.includes('missed video call') || 
+                                           textLower.includes('gemiste oproep') || 
+                                           textLower.includes('audio call') || 
+                                           textLower.includes('video call') ||
+                                           (textLower.includes('call duration') || textLower.includes('duur van oproep')));
 
                         if (isVoiceNote) {
                             voiceNotes.push({ rawTimestamp: timestamp, dateObj, sender, text: rawText });
-                        } else if (isCall) {
-                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste') || textLower.includes('no answer');
+                        } else if (isSystemCall) {
+                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste');
                             calls.push({ rawTimestamp: timestamp, dateObj, caller: sender, text: rawText, missed: isMissed });
                         } else {
                             currentMessage = { rawTimestamp: timestamp, dateObj, sender, text: rawText };
@@ -775,6 +778,7 @@
             let wordCounts = {};
             let callStats = {};
             let voiceNoteCounts = {};
+            let deletedMessageCounts = {};
             let timeWindows = {};
             let morningFollowUps = {};
 
@@ -788,12 +792,22 @@
                 wordCounts[s] = [];
                 callStats[s] = { initiated: 0, returned: 0, missed: 0, total: 0 };
                 voiceNoteCounts[s] = 0;
+                deletedMessageCounts[s] = 0;
                 timeWindows[s] = { morning: 0, afternoon: 0, evening: 0, lateNight: 0 };
                 morningFollowUps[s] = { openers: 0, carriedAfter: 0 };
             });
 
             voiceNotes.forEach(v => {
                 if (voiceNoteCounts[v.sender] !== undefined) voiceNoteCounts[v.sender]++;
+            });
+
+            messages.forEach(msg => {
+                let tLower = msg.text.toLowerCase();
+                if (tLower.includes('this message was deleted') || tLower.includes('you deleted this message') || tLower.includes('hierdie boodskap is uitgevee')) {
+                    if (deletedMessageCounts[msg.sender] !== undefined) {
+                        deletedMessageCounts[msg.sender]++;
+                    }
+                }
             });
 
             calls.forEach((c, idx) => {
@@ -921,6 +935,7 @@
                 let doubles = doubleTexts[sender] || 0;
                 let questions = questionCounts[sender] || 0;
                 let vnCount = voiceNoteCounts[sender] || 0;
+                let deletedCount = deletedMessageCounts[sender] || 0;
                 
                 let cInitiated = callStats[sender] ? callStats[sender].initiated : 0;
                 let cReturned = callStats[sender] ? callStats[sender].returned : 0;
@@ -970,6 +985,7 @@
                             Avg Reply Time: <strong>${latencyText}</strong><br>
                             Avg Message Length: <strong>${avgWords} words</strong><br>
                             Voice Notes Sent: <strong>${vnCount}</strong><br>
+                            Messages Deleted: <strong>${deletedCount}</strong><br>
                             Questions Asked: <strong>${questions}</strong><br>
                             Double Texts Sent: <strong>${doubles}</strong><br>
                             Low-Effort Morning Check-ins: <strong>${breadcrumbs}</strong><br>
