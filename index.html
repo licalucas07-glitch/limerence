@@ -299,6 +299,39 @@
             color: var(--text-muted);
             line-height: 1.4;
         }
+
+        /* Glossary Section */
+        .glossary-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 24px;
+            margin-top: 24px;
+        }
+
+        .glossary-card h3 {
+            color: var(--jade-primary);
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+
+        .glossary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .glossary-item h5 {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        .glossary-item p {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -364,6 +397,37 @@
             </div>
             <div class="stats-grid" id="stats-grid">
                 <!-- Dynamically populated metrics -->
+            </div>
+
+            <!-- Audit Metrics Guide / Glossary -->
+            <div class="glossary-card">
+                <h3>📖 Audit Metrics Guide</h3>
+                <div class="glossary-grid">
+                    <div class="glossary-item">
+                        <h5>Low-Effort Morning Check-ins</h5>
+                        <p>Short greetings (<=5 words) sent between 6am-10am. Measures superficial consistency vs. meaningful engagement.</p>
+                    </div>
+                    <div class="glossary-item">
+                        <h5>Topic Carrying Score</h5>
+                        <p>Percentage of times a participant sent follow-up messages or asked questions to keep the chat alive after a morning opener.</p>
+                    </div>
+                    <div class="glossary-item">
+                        <h5>Calls Initiated vs. Returned</h5>
+                        <p>Proactive calls initiated out of the blue versus calls returned after missing an incoming call prompt.</p>
+                    </div>
+                    <div class="glossary-item">
+                        <h5>Calls Missed by Them (Unanswered)</h5>
+                        <p>Calls initiated *by this person* that went unanswered or unpicked by the recipient.</p>
+                    </div>
+                    <div class="glossary-item">
+                        <h5>Avg Call Return Speed</h5>
+                        <p>Average time (in minutes) it takes a participant to call back after missing an incoming call from the other person.</p>
+                    </div>
+                    <div class="glossary-item">
+                        <h5>Longest Silent Streak</h5>
+                        <p>The longest continuous dead gap in the chat, identifying who sent the last message and who finally reached back out.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -532,394 +596,11 @@
 
                         let timestamp = match[1].trim();
                         let sender = match[2].trim();
-                        let text = match[3].trim();
-                        let textLower = text.toLowerCase();
+                        let rawText = match[3].trim();
+                        
+                        let textClean = rawText.replace(/[\u200E\u200F\u202A-\u202E\u00A0]/g, '').trim();
+                        let textLower = textClean.toLowerCase();
 
-                        // Detect Voice Notes (e.g., "audio omitted", "oudio weggelaat", "audio omitido", etc.)
-                        let isVoiceNote = textLower.includes('audio omitted') || 
-                                          textLower.includes('oudio weggelaat') || 
-                                          textLower.includes('audio omitido') || 
-                                          textLower.includes('voice note') || 
-                                          textLower.includes('stemboodskap');
-
-                        // Detect Calls
-                        let isCall = !isVoiceNote && (
-                                     textLower.includes('call') || textLower.includes('oproep') || 
-                                     textLower.includes('min') || textLower.includes('sec') || 
-                                     textLower.includes('duur') || textLower.includes('missed') || 
-                                     textLower.includes('gemiste') || textLower.includes('no answer') || 
-                                     textLower.includes('geen antwoord'));
-
-                        if (isVoiceNote) {
-                            voiceNotes.push({
-                                rawTimestamp: timestamp,
-                                dateObj: parseTimestamp(timestamp),
-                                sender: sender,
-                                text: text
-                            });
-                        } else if (isCall) {
-                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste') || textLower.includes('no answer') || textLower.includes('geen antwoord');
-                            calls.push({
-                                rawTimestamp: timestamp,
-                                dateObj: parseTimestamp(timestamp),
-                                caller: sender,
-                                text: text,
-                                missed: isMissed
-                            });
-                        } else {
-                            currentMessage = {
-                                rawTimestamp: timestamp,
-                                dateObj: parseTimestamp(timestamp),
-                                sender: sender,
-                                text: text
-                            };
-                        }
-                        matchedLine = true;
-                        break;
-                    }
-                }
-
-                if (!matchedLine && currentMessage) {
-                    currentMessage.text += '\n' + line;
-                }
-            });
-
-            if (currentMessage) {
-                messages.push(currentMessage);
-            }
-
-            return { messages, calls, voiceNotes };
-        }
-
-        function parseTimestamp(tsStr) {
-            let clean = tsStr.replace('[', '').replace(']', '');
-            let d = new Date(clean);
-            if (!isNaN(d)) return d;
-
-            let parts = clean.split(/[\/\-\,\s\:]+/);
-            if (parts.length >= 5) {
-                if (parts[0].length === 4) {
-                    return new Date(parts[0], parts[1] - 1, parts[2], parts[3], parts[4], parts[5] || 0);
-                } else {
-                    return new Date(parts[2], parts[1] - 1, parts[0], parts[3], parts[4], parts[5] || 0);
-                }
-            }
-            return new Date();
-        }
-
-        function runFilteredAudit() {
-            const startLimit = new Date(startDateInput.value);
-            startLimit.setHours(0, 0, 0, 0);
-
-            const endLimit = new Date(endDateInput.value);
-            endLimit.setHours(23, 59, 59, 999);
-
-            const filteredMessages = globalMessages.filter(m => m.dateObj >= startLimit && m.dateObj <= endLimit);
-            const filteredCalls = globalCalls.filter(c => c.dateObj >= startLimit && c.dateObj <= endLimit);
-            const filteredVoiceNotes = globalVoiceNotes.filter(v => v.dateObj >= startLimit && v.dateObj <= endLimit);
-
-            runAuditAnalytics(filteredMessages, filteredCalls, filteredVoiceNotes);
-        }
-
-        function runAuditAnalytics(messages, calls, voiceNotes) {
-            resultsContainer.style.display = 'block';
-            const currentUser = userSelect.value;
-
-            const senders = {};
-            messages.forEach(msg => {
-                senders[msg.sender] = (senders[msg.sender] || 0) + 1;
-            });
-
-            calls.forEach(c => {
-                if (!senders[c.caller]) senders[c.caller] = 0;
-            });
-            voiceNotes.forEach(v => {
-                if (!senders[v.sender]) senders[v.sender] = 0;
-            });
-
-            const senderKeys = Object.keys(senders);
-            const totalMessages = messages.length;
-            const totalVoiceNotes = voiceNotes.length;
-            
-            chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages, ${totalVoiceNotes} voice notes, and ${calls.length} calls across ${senderKeys.join(' & ')} within the selected timeframe. (Viewing as: ${currentUser})`;
-
-            let responseTimes = {};
-            senderKeys.forEach(s => responseTimes[s] = []);
-            let dailyInitiators = {};
-            let lowEffortOpeners = {};
-            let doubleTexts = {};
-            let questionCounts = {};
-            let wordCounts = {};
-            let callStats = {};
-            let voiceNoteCounts = {};
-            let timeWindows = {};
-            let morningFollowUps = {};
-
-            senderKeys.forEach(s => {
-                dailyInitiators[s] = 0;
-                lowEffortOpeners[s] = 0;
-                doubleTexts[s] = 0;
-                questionCounts[s] = 0;
-                wordCounts[s] = [];
-                callStats[s] = { initiated: 0, returned: 0, missed: 0, total: 0 };
-                voiceNoteCounts[s] = 0;
-                timeWindows[s] = { morning: 0, afternoon: 0, evening: 0, lateNight: 0 };
-                morningFollowUps[s] = { openers: 0, carriedAfter: 0 };
-            });
-
-            voiceNotes.forEach(v => {
-                if (voiceNoteCounts[v.sender] !== undefined) {
-                    voiceNoteCounts[v.sender]++;
-                }
-            });
-
-            calls.forEach((c, idx) => {
-                if (!callStats[c.caller]) return;
-
-                if (c.missed) {
-                    callStats[c.caller].missed++;
-                } else {
-                    let isReturned = false;
-                    for (let p = idx - 1; p >= 0; p--) {
-                        let prevCall = calls[p];
-                        let timeDiffMins = (c.dateObj - prevCall.dateObj) / (1000 * 60);
-                        if (timeDiffMins > 30) break;
-
-                        if (prevCall.caller !== c.caller && prevCall.missed) {
-                            isReturned = true;
-                            break;
-                        }
-                    }
-
-                    if (isReturned) {
-                        callStats[c.caller].returned++;
-                    } else {
-                        callStats[c.caller].initiated++;
-                    }
-                    callStats[c.caller].total++;
-                }
-            });
-
-            let activeDays = new Set();
-            let lastDayStr = "";
-            let weeklyVolume = {};
-            let maxSilentHours = 0;
-            let lastSenderBeforeSilence = "N/A";
-            let breakerOfSilence = "N/A";
-
-            messages.forEach((msg, i) => {
-                let dayStr = msg.dateObj.toISOString().split('T')[0];
-                activeDays.add(dayStr);
-
-                if (dayStr !== lastDayStr) {
-                    dailyInitiators[msg.sender] = (dailyInitiators[msg.sender] || 0) + 1;
-                    lastDayStr = dayStr;
-                }
-
-                let text = msg.text.trim();
-                let words = text.split(/\s+/);
-                wordCounts[msg.sender].push(words.length);
-
-                if (text.includes('?')) {
-                    questionCounts[msg.sender]++;
-                }
-
-                let hour = msg.dateObj.getHours();
-                if (hour >= 6 && hour < 12) timeWindows[msg.sender].morning++;
-                else if (hour >= 12 && hour < 17) timeWindows[msg.sender].afternoon++;
-                else if (hour >= 17 && hour < 22) timeWindows[msg.sender].evening++;
-                else timeWindows[msg.sender].lateNight++;
-
-                if (hour >= 6 && hour < 10 && words.length <= 5) {
-                    lowEffortOpeners[msg.sender]++;
-                    morningFollowUps[msg.sender].openers++;
-
-                    let participantCarried = false;
-                    for (let j = i + 1; j < Math.min(i + 4, messages.length); j++) {
-                        if (messages[j].sender === msg.sender) {
-                            participantCarried = true;
-                        }
-                    }
-                    if (participantCarried) {
-                        morningFollowUps[msg.sender].carriedAfter++;
-                    }
-                }
-
-                if (i > 0) {
-                    let prev = messages[i - 1];
-                    let diffHours = (msg.dateObj - prev.dateObj) / (1000 * 60 * 60);
-                    if (diffHours > maxSilentHours) {
-                        maxSilentHours = diffHours;
-                        lastSenderBeforeSilence = prev.sender;
-                        breakerOfSilence = msg.sender;
-                    }
-
-                    if (msg.sender === prev.sender) {
-                        doubleTexts[msg.sender]++;
-                    } else {
-                        let diffMinutes = diffHours * 60;
-                        if (diffMinutes > 0 && diffMinutes < 1440) {
-                            responseTimes[msg.sender].push(diffMinutes);
-                        }
-                    }
-                }
-
-                let year = msg.dateObj.getFullYear();
-                let weekNum = getWeekNumber(msg.dateObj);
-                let weekKey = `${year}-W${weekNum}`;
-                weeklyVolume[weekKey] = (weeklyVolume[weekKey] || 0) + 1;
-            });
-
-            let totalDaysCount = activeDays.size || 1;
-
-            let weeks = Object.keys(weeklyVolume).sort();
-            let peakWeekKey = weeks[0];
-            let maxVol = 0;
-            let shiftWeekKey = null;
-            let maxDrop = 0;
-
-            weeks.forEach((w, i) => {
-                let vol = weeklyVolume[w];
-                if (vol > maxVol) {
-                    maxVol = vol;
-                    peakWeekKey = w;
-                }
-                if (i > 0) {
-                    let prevVol = weeklyVolume[weeks[i - 1]];
-                    let drop = prevVol - vol;
-                    if (drop > maxDrop && prevVol > 30 && (drop / prevVol) > 0.35) {
-                        maxDrop = drop;
-                        shiftWeekKey = w;
-                    }
-                }
-            });
-
-            let peakDateRange = getWeekDateRange(peakWeekKey);
-            let shiftDateRange = shiftWeekKey ? getWeekDateRange(shiftWeekKey) : "Stable / Consistent flow";
-
-            statsGrid.innerHTML = '';
-
-            senderKeys.forEach(sender => {
-                let count = senders[sender] || 0;
-                let pct = totalMessages > 0 ? ((count / totalMessages) * 100).toFixed(1) : "0.0";
-                let starts = dailyInitiators[sender] || 0;
-                let startPct = ((starts / totalDaysCount) * 100).toFixed(1);
-                let breadcrumbs = lowEffortOpeners[sender] || 0;
-                let doubles = doubleTexts[sender] || 0;
-                let questions = questionCounts[sender] || 0;
-                let vnCount = voiceNoteCounts[sender] || 0;
-                
-                let cInitiated = callStats[sender] ? callStats[sender].initiated : 0;
-                let cReturned = callStats[sender] ? callStats[sender].returned : 0;
-                let cMissed = callStats[sender] ? callStats[sender].missed : 0;
-
-                let avgWords = wordCounts[sender].length > 0 
-                    ? Math.round(wordCounts[sender].reduce((a, b) => a + b, 0) / wordCounts[sender].length) 
-                    : 0;
-
-                let avgLatencyMins = responseTimes[sender] && responseTimes[sender].length > 0 
-                    ? Math.round(responseTimes[sender].reduce((a, b) => a + b, 0) / responseTimes[sender].length) 
-                    : 0;
-                let latencyText = avgLatencyMins < 60 ? `${avgLatencyMins} mins` : `${(avgLatencyMins/60).toFixed(1)} hours`;
-
-                let windows = timeWindows[sender];
-                let peakWin = Object.keys(windows).reduce((a, b) => windows[a] > windows[b] ? a : b);
-                let peakWinText = peakWin === 'lateNight' ? 'Late Night (10pm-6am)' : peakWin.charAt(0).toUpperCase() + peakWin.slice(1);
-
-                let openerCount = morningFollowUps[sender].openers;
-                let carriedCount = morningFollowUps[sender].carriedAfter;
-                let carryScore = openerCount > 0 ? Math.round((carriedCount / openerCount) * 100) : 50;
-
-                let patternTag = "Balanced Engagement";
-                if (doubles > count * 0.15 && avgWords > 10) {
-                    patternTag = "Anxious Pattern (Higher double-texting & investment)";
-                } else if (avgLatencyMins > 120 && avgWords <= 6) {
-                    patternTag = "Avoidant Pattern (Delayed, minimal responses)";
-                }
-
-                let displayName = (sender === currentUser) ? `You (${sender})` : sender;
-
-                statsGrid.innerHTML += `
-                    <div class="stat-card">
-                        <h4>Audit Profile (${displayName})</h4>
-                        <div class="stat-value">${count.toLocaleString()} msgs (${pct}%)</div>
-                        <div class="stat-desc" style="margin-top:6px;">
-                            Started day first: <strong>${starts} times (${startPct}%)</strong><br>
-                            Avg Reply Time: <strong>${latencyText}</strong><br>
-                            Avg Message Length: <strong>${avgWords} words</strong><br>
-                            Voice Notes Sent: <strong>${vnCount}</strong><br>
-                            Questions Asked: <strong>${questions}</strong><br>
-                            Double Texts Sent: <strong>${doubles}</strong><br>
-                            Low-Effort Morning Check-ins: <strong>${breadcrumbs}</strong><br>
-                            Topic Carrying Score: <strong>${carryScore}% follow-through</strong><br>
-                            Peak Comm Window: <strong>${peakWinText}</strong><br>
-                            Calls Initiated: <strong>${cInitiated}</strong> (Proactive)<br>
-                            Calls Returned: <strong>${cReturned}</strong> (After missed)<br>
-                            Calls Missed/No Answer: <strong>${cMissed}</strong><br>
-                            <span style="color: var(--jade-primary);">Style Dynamic: ${patternTag}</span>
-                        </div>
-                    </div>
-                `;
-            });
-
-            let silentStreakDisplay = maxSilentHours < 24 ? `${Math.round(maxSilentHours)} hours` : `${(maxSilentHours/24).toFixed(1)} days`;
-
-            statsGrid.innerHTML += `
-                <div class="stat-card alert">
-                    <h4>Exact Energy Shift Date Range</h4>
-                    <div class="stat-value">${shiftDateRange}</div>
-                    <div class="stat-desc">Pinpoints the exact timeframe engagement and communication momentum sharply declined.</div>
-                </div>
-                <div class="stat-card alert">
-                    <h4>Longest Silent Streak</h4>
-                    <div class="stat-value">${silentStreakDisplay}</div>
-                    <div class="stat-desc">
-                        Maximum gap where chat went dead.<br>
-                        Left hanging by: <strong>${lastSenderBeforeSilence}</strong><br>
-                        Broke the silence: <strong>${breakerOfSilence}</strong>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <h4>Peak Energy Date Range</h4>
-                    <div class="stat-value">${peakDateRange}</div>
-                    <div class="stat-desc">Highest activity window recorded at <strong>${maxVol}</strong> messages.</div>
-                </div>
-                <div class="stat-card">
-                    <h4>Timeframe Scope</h4>
-                    <div class="stat-value">${totalDaysCount} Active Days</div>
-                    <div class="stat-desc">Filtered scope covers <strong>${messages.length.toLocaleString()} messages</strong>, <strong>${totalVoiceNotes} voice notes</strong> & <strong>${calls.length} calls</strong>.</div>
-                </div>
-            `;
-        }
-
-        function getWeekNumber(d) {
-            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
-            var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-            var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
-            return weekNo;
-        }
-
-        function getWeekDateRange(weekStr) {
-            if (!weekStr || !weekStr.includes('-W')) return weekStr;
-            let parts = weekStr.split('-W');
-            let year = parseInt(parts[0]);
-            let week = parseInt(parts[1]);
-
-            let simple = new Date(year, 0, 1 + (week - 1) * 7);
-            let dow = simple.getDay();
-            let ISOweekStart = new Date(simple);
-            if (dow <= 4)
-                ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
-            else
-                ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
-
-            let ISOweekEnd = new Date(ISOweekStart);
-            ISOweekEnd.setDate(ISOweekStart.getDate() + 6);
-
-            const options = { month: 'short', day: 'numeric', year: 'numeric' };
-            return `${ISOweekStart.toLocaleDateString('en-US', options)} – ${ISOweekEnd.toLocaleDateString('en-US', options)}`;
-        }
-    </script>
-</body>
-</html>
+                        let isVoiceNote = textLower.includes('audio') || 
+                                          textLower.includes('oudio') || 
+                                          textLower.includes('ptt
