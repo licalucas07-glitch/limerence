@@ -209,7 +209,6 @@
             background-color: var(--jade-glow);
         }
 
-        /* Completely hidden file input triggered programmatically for 100% reliability */
         input[type="file"] {
             display: none;
         }
@@ -702,18 +701,18 @@
                         let textLower = rawText.toLowerCase();
                         let dateObj = parseTimestamp(timestamp);
 
-                        // Strict check for system-generated call log entries
-                        let isSystemCall = textLower.includes('missed voice call') || 
-                                           textLower.includes('missed video call') || 
-                                           textLower.includes('gemiste oproep') || 
-                                           textLower.includes('gemiste videoproep') ||
-                                           textLower.includes('audio call') || 
-                                           textLower.includes('video call') ||
-                                           textLower.includes('call duration') || 
-                                           textLower.includes('duur van oproep') ||
-                                           textLower.includes('geen antwoord') ||
-                                           textLower.includes('voice call') ||
-                                           textLower.includes('video-oproep');
+                        // Comprehensive system call check for English and Afrikaans variants
+                        let isSystemCall = (
+                            textLower.includes('call') || 
+                            textLower.includes('oproep') || 
+                            textLower.includes('missed') || 
+                            textLower.includes('gemiste') ||
+                            textLower.includes('ring')
+                        ) && 
+                        !textLower.includes('encrypted') && 
+                        !textLower.includes('geënkripteer') && 
+                        !textLower.includes('security code') &&
+                        !textLower.includes('beveiligingskode');
 
                         if (isSystemCall) {
                             let isMissed = textLower.includes('missed') || textLower.includes('gemiste') || textLower.includes('no answer') || textLower.includes('geen antwoord');
