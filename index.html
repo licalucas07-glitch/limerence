@@ -99,7 +99,7 @@
             margin-bottom: 6px;
         }
 
-        /* How-To Tutorial Box */
+        /* How-To Guide Box */
         .tutorial-box {
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -137,7 +137,7 @@
             line-height: 1.4;
         }
 
-        /* Dropzone & Upload Input Box */
+        /* Styled Jade Dropzone Container */
         .dropzone {
             background-color: var(--card-bg);
             border: 2px dashed var(--jade-primary);
@@ -146,6 +146,14 @@
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
             margin-bottom: 24px;
             position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            border-color: #5eead4;
+            background-color: #131f36;
+            box-shadow: 0 0 25px var(--jade-glow);
         }
 
         .dropzone-icon {
@@ -169,8 +177,8 @@
             background-color: var(--jade-primary);
             color: #070b14;
             border: none;
-            padding: 12px 28px;
-            font-size: 1rem;
+            padding: 10px 24px;
+            font-size: 0.95rem;
             font-weight: 700;
             border-radius: 8px;
             cursor: pointer;
@@ -201,14 +209,16 @@
             background-color: var(--jade-glow);
         }
 
-        /* Direct, clean File Input Button */
+        /* Completely hidden native input overlaying the dropzone for perfect clicking */
         input[type="file"] {
-            display: block;
-            margin: 0 auto;
-            color: var(--text-muted);
-            font-size: 0.9rem;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
             cursor: pointer;
-            padding: 10px;
+            z-index: 10;
         }
 
         /* Config Section */
@@ -443,11 +453,12 @@
             </div>
         </div>
 
-        <!-- Upload Dropzone -->
+        <!-- Styled Dropzone Box -->
         <div class="dropzone" id="dropzone">
             <div class="dropzone-icon">📂</div>
-            <h3>Select your WhatsApp chat file</h3>
-            <p>Choose your exported text file (.txt) below to run the private analysis.</p>
+            <h3>Drag and drop or tap here to upload your <code>_chat.txt</code> file</h3>
+            <p>Works seamlessly on iPhone, Android, and desktop browsers.</p>
+            <button class="btn" type="button">Select File</button>
             <input type="file" id="fileInput" accept=".txt, .TXT, text/plain, *">
         </div>
 
@@ -557,16 +568,16 @@
 
         dropzone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            dropzone.style.borderColor = '#5eead4';
+            dropzone.classList.add('dragover');
         });
 
         dropzone.addEventListener('dragleave', () => {
-            dropzone.style.borderColor = 'var(--jade-primary)';
+            dropzone.classList.remove('dragover');
         });
 
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropzone.style.borderColor = 'var(--jade-primary)';
+            dropzone.classList.remove('dragover');
             if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                 handleFile(e.dataTransfer.files[0]);
             }
@@ -616,4 +627,457 @@
                     let opt = document.createElement('option');
                     opt.value = s;
                     opt.textContent = s;
-                    if (idx === 0) opt.
+                    if (idx === 0) opt.selected = true;
+                    userSelect.appendChild(opt);
+                });
+
+                let allDates = [
+                    ...globalMessages.map(m => m.dateObj), 
+                    ...globalCalls.map(c => c.dateObj),
+                    ...globalVoiceNotes.map(v => v.dateObj)
+                ].filter(d => d && !isNaN(d));
+
+                if (allDates.length === 0) {
+                    showError("Could not extract valid timestamps from the chat file.");
+                    return;
+                }
+
+                allDates.sort((a, b) => a - b);
+
+                minFileDate = allDates[0];
+                maxFileDate = allDates[allDates.length - 1];
+
+                startDateInput.min = minFileDate.toISOString().split('T')[0];
+                startDateInput.max = maxFileDate.toISOString().split('T')[0];
+                endDateInput.min = minFileDate.toISOString().split('T')[0];
+                endDateInput.max = maxFileDate.toISOString().split('T')[0];
+
+                setPresetAll();
+                configSection.style.display = 'block';
+                runFilteredAudit();
+            };
+
+            reader.onerror = function() {
+                showError("Error reading file. Please try again.");
+            };
+
+            reader.readAsText(file);
+        }
+
+        function setPresetAll() {
+            if (!minFileDate || !maxFileDate) return;
+            startDateInput.value = minFileDate.toISOString().split('T')[0];
+            endDateInput.value = maxFileDate.toISOString().split('T')[0];
+            runFilteredAudit();
+        }
+
+        function setPresetDays(daysCount) {
+            if (!maxFileDate) return;
+            let start = new Date(maxFileDate);
+            start.setDate(start.getDate() - daysCount);
+            if (start < minFileDate) start = new Date(minFileDate);
+
+            startDateInput.value = start.toISOString().split('T')[0];
+            endDateInput.value = maxFileDate.toISOString().split('T')[0];
+            runFilteredAudit();
+        }
+
+        function parseWhatsAppChat(fileContent) {
+            const linePatterns = [
+                /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4},\s+\d{1,2}:\d{2}(?::\d{2})?\s?(?:[APap][Mm])?)\]?\s*[-–]?\s*([^:]+):\s+([\s\S]*)$/,
+                /^(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}\s?(?:[APap][Mm])?)\s+-\s+([^:]+):\s+([\s\S]*)$/
+            ];
+
+            const lines = fileContent.split(/\r?\n/);
+            let messages = [];
+            let calls = [];
+            let voiceNotes = [];
+            let currentMessage = null;
+
+            lines.forEach(line => {
+                let cleanLine = line.replace(/[\u200E\u200F\u202A-\u202E\u00A0]/g, '').trim();
+                if (!cleanLine) return;
+
+                let matched = false;
+                for (let pattern of linePatterns) {
+                    const match = cleanLine.match(pattern);
+                    if (match) {
+                        if (currentMessage) {
+                            messages.push(currentMessage);
+                            currentMessage = null;
+                        }
+
+                        let timestamp = match[1].trim();
+                        let sender = match[2].trim();
+                        let rawText = match[3].trim();
+                        let textLower = rawText.toLowerCase();
+
+                        let dateObj = parseTimestamp(timestamp);
+
+                        let isVoiceNote = textLower.includes('audio') || 
+                                          textLower.includes('ptt') || 
+                                          textLower.includes('stemboodskap') || 
+                                          textLower.includes('voice note') ||
+                                          textLower.includes('.opus') ||
+                                          textLower.includes('.m4a');
+
+                        let isCall = !isVoiceNote && (
+                                     textLower.includes('call') || textLower.includes('oproep') || 
+                                     textLower.includes('missed') || textLower.includes('gemiste') || 
+                                     textLower.includes('no answer'));
+
+                        if (isVoiceNote) {
+                            voiceNotes.push({ rawTimestamp: timestamp, dateObj, sender, text: rawText });
+                        } else if (isCall) {
+                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste') || textLower.includes('no answer');
+                            calls.push({ rawTimestamp: timestamp, dateObj, caller: sender, text: rawText, missed: isMissed });
+                        } else {
+                            currentMessage = { rawTimestamp: timestamp, dateObj, sender, text: rawText };
+                        }
+                        matched = true;
+                        break;
+                    }
+                }
+
+                if (!matched && currentMessage) {
+                    currentMessage.text += '\n' + cleanLine;
+                }
+            });
+
+            if (currentMessage) {
+                messages.push(currentMessage);
+            }
+
+            return { messages, calls, voiceNotes };
+        }
+
+        function parseTimestamp(tsStr) {
+            let clean = tsStr.replace('[', '').replace(']', '').trim();
+            let d = new Date(clean);
+            if (!isNaN(d)) return d;
+
+            let parts = clean.split(/[\/\-\,\s\:]+/);
+            if (parts.length >= 5) {
+                let y = parseInt(parts[0]) > 1000 ? parseInt(parts[0]) : (parseInt(parts[2]) < 100 ? 2000 + parseInt(parts[2]) : parseInt(parts[2]));
+                let m = parseInt(parts[0]) > 1000 ? parseInt(parts[1]) - 1 : parseInt(parts[1]) - 1;
+                let day = parseInt(parts[0]) > 1000 ? parseInt(parts[2]) : parseInt(parts[0]);
+                let h = parseInt(parts[3]) || 0;
+                let min = parseInt(parts[4]) || 0;
+
+                if (clean.toLowerCase().includes('pm') && h < 12) h += 12;
+                if (clean.toLowerCase().includes('am') && h === 12) h = 0;
+
+                return new Date(y, m, day, h, min);
+            }
+            return new Date();
+        }
+
+        function runFilteredAudit() {
+            const startLimit = new Date(startDateInput.value);
+            startLimit.setHours(0, 0, 0, 0);
+
+            const endLimit = new Date(endDateInput.value);
+            endLimit.setHours(23, 59, 59, 999);
+
+            const filteredMessages = globalMessages.filter(m => m.dateObj >= startLimit && m.dateObj <= endLimit);
+            const filteredCalls = globalCalls.filter(c => c.dateObj >= startLimit && c.dateObj <= endLimit);
+            const filteredVoiceNotes = globalVoiceNotes.filter(v => v.dateObj >= startLimit && v.dateObj <= endLimit);
+
+            runAuditAnalytics(filteredMessages, filteredCalls, filteredVoiceNotes);
+        }
+
+        function runAuditAnalytics(messages, calls, voiceNotes) {
+            resultsContainer.style.display = 'block';
+            const currentUser = userSelect.value;
+
+            const senders = {};
+            messages.forEach(msg => { senders[msg.sender] = (senders[msg.sender] || 0) + 1; });
+            calls.forEach(c => { if (!senders[c.caller]) senders[c.caller] = 0; });
+            voiceNotes.forEach(v => { if (!senders[v.sender]) senders[v.sender] = 0; });
+
+            const senderKeys = Object.keys(senders);
+            const totalMessages = messages.length;
+            const totalVoiceNotes = voiceNotes.length;
+            
+            chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages, ${totalVoiceNotes} voice notes, and ${calls.length} calls across ${senderKeys.join(' & ')} within the selected timeframe. (Viewing as: ${currentUser})`;
+
+            let responseTimes = {};
+            let callReturnTimes = {};
+            let dailyInitiators = {};
+            let lowEffortOpeners = {};
+            let doubleTexts = {};
+            let questionCounts = {};
+            let wordCounts = {};
+            let callStats = {};
+            let voiceNoteCounts = {};
+            let timeWindows = {};
+            let morningFollowUps = {};
+
+            senderKeys.forEach(s => {
+                responseTimes[s] = [];
+                callReturnTimes[s] = [];
+                dailyInitiators[s] = 0;
+                lowEffortOpeners[s] = 0;
+                doubleTexts[s] = 0;
+                questionCounts[s] = 0;
+                wordCounts[s] = [];
+                callStats[s] = { initiated: 0, returned: 0, missed: 0, total: 0 };
+                voiceNoteCounts[s] = 0;
+                timeWindows[s] = { morning: 0, afternoon: 0, evening: 0, lateNight: 0 };
+                morningFollowUps[s] = { openers: 0, carriedAfter: 0 };
+            });
+
+            voiceNotes.forEach(v => {
+                if (voiceNoteCounts[v.sender] !== undefined) voiceNoteCounts[v.sender]++;
+            });
+
+            calls.forEach((c, idx) => {
+                if (!callStats[c.caller]) return;
+
+                if (c.missed) {
+                    callStats[c.caller].missed++;
+                } else {
+                    let isReturned = false;
+                    for (let p = idx - 1; p >= 0; p--) {
+                        let prevCall = calls[p];
+                        let timeDiffMins = (c.dateObj - prevCall.dateObj) / (1000 * 60);
+                        if (timeDiffMins > 1440) break;
+
+                        if (prevCall.caller !== c.caller && prevCall.missed) {
+                            isReturned = true;
+                            callReturnTimes[c.caller].push(timeDiffMins);
+                            break;
+                        }
+                    }
+
+                    if (isReturned) callStats[c.caller].returned++;
+                    else callStats[c.caller].initiated++;
+                    callStats[c.caller].total++;
+                }
+            });
+
+            let activeDays = new Set();
+            let lastDayStr = "";
+            let weeklyVolume = {};
+            let maxSilentHours = 0;
+            let lastSenderBeforeSilence = "N/A";
+            let breakerOfSilence = "N/A";
+
+            messages.forEach((msg, i) => {
+                let dayStr = msg.dateObj.toISOString().split('T')[0];
+                activeDays.add(dayStr);
+
+                if (dayStr !== lastDayStr) {
+                    dailyInitiators[msg.sender] = (dailyInitiators[msg.sender] || 0) + 1;
+                    lastDayStr = dayStr;
+                }
+
+                let text = msg.text.trim();
+                let words = text.split(/\s+/);
+                wordCounts[msg.sender].push(words.length);
+
+                if (text.includes('?')) questionCounts[msg.sender]++;
+
+                let hour = msg.dateObj.getHours();
+                if (hour >= 6 && hour < 12) timeWindows[msg.sender].morning++;
+                else if (hour >= 12 && hour < 17) timeWindows[msg.sender].afternoon++;
+                else if (hour >= 17 && hour < 22) timeWindows[msg.sender].evening++;
+                else timeWindows[msg.sender].lateNight++;
+
+                if (hour >= 6 && hour < 10 && words.length <= 5) {
+                    lowEffortOpeners[msg.sender]++;
+                    morningFollowUps[msg.sender].openers++;
+
+                    let participantCarried = false;
+                    for (let j = i + 1; j < Math.min(i + 4, messages.length); j++) {
+                        if (messages[j].sender === msg.sender) participantCarried = true;
+                    }
+                    if (participantCarried) morningFollowUps[msg.sender].carriedAfter++;
+                }
+
+                if (i > 0) {
+                    let prev = messages[i - 1];
+                    let diffHours = (msg.dateObj - prev.dateObj) / (1000 * 60 * 60);
+                    if (diffHours > maxSilentHours) {
+                        maxSilentHours = diffHours;
+                        lastSenderBeforeSilence = prev.sender;
+                        breakerOfSilence = msg.sender;
+                    }
+
+                    if (msg.sender === prev.sender) {
+                        doubleTexts[msg.sender]++;
+                    } else {
+                        let diffMinutes = diffHours * 60;
+                        if (diffMinutes > 0 && diffMinutes < 1440) responseTimes[msg.sender].push(diffMinutes);
+                    }
+                }
+
+                let year = msg.dateObj.getFullYear();
+                let weekNum = getWeekNumber(msg.dateObj);
+                let weekKey = `${year}-W${weekNum}`;
+                weeklyVolume[weekKey] = (weeklyVolume[weekKey] || 0) + 1;
+            });
+
+            let totalDaysCount = activeDays.size || 1;
+
+            let weeks = Object.keys(weeklyVolume).sort();
+            let peakWeekKey = weeks[0];
+            let maxVol = 0;
+            let shiftWeekKey = null;
+            let maxDrop = 0;
+
+            weeks.forEach((w, i) => {
+                let vol = weeklyVolume[w];
+                if (vol > maxVol) {
+                    maxVol = vol;
+                    peakWeekKey = w;
+                }
+                if (i > 0) {
+                    let prevVol = weeklyVolume[weeks[i - 1]];
+                    let drop = prevVol - vol;
+                    if (drop > maxDrop && prevVol > 30 && (drop / prevVol) > 0.35) {
+                        maxDrop = drop;
+                        shiftWeekKey = w;
+                    }
+                }
+            });
+
+            let peakDateRange = getWeekDateRange(peakWeekKey);
+            let shiftDateRange = shiftWeekKey ? getWeekDateRange(shiftWeekKey) : "Stable / Consistent flow";
+
+            statsGrid.innerHTML = '';
+
+            senderKeys.forEach(sender => {
+                let count = senders[sender] || 0;
+                let pct = totalMessages > 0 ? ((count / totalMessages) * 100).toFixed(1) : "0.0";
+                let starts = dailyInitiators[sender] || 0;
+                let startPct = ((starts / totalDaysCount) * 100).toFixed(1);
+                let breadcrumbs = lowEffortOpeners[sender] || 0;
+                let doubles = doubleTexts[sender] || 0;
+                let questions = questionCounts[sender] || 0;
+                let vnCount = voiceNoteCounts[sender] || 0;
+                
+                let cInitiated = callStats[sender] ? callStats[sender].initiated : 0;
+                let cReturned = callStats[sender] ? callStats[sender].returned : 0;
+                let cMissed = callStats[sender] ? callStats[sender].missed : 0;
+
+                let otherSender = senderKeys.find(s => s !== sender) || "the other person";
+
+                let avgCallReturnMins = callReturnTimes[sender] && callReturnTimes[sender].length > 0
+                    ? Math.round(callReturnTimes[sender].reduce((a, b) => a + b, 0) / callReturnTimes[sender].length)
+                    : null;
+                let callReturnText = avgCallReturnMins !== null 
+                    ? (avgCallReturnMins < 60 ? `${avgCallReturnMins} mins` : `${(avgCallReturnMins/60).toFixed(1)} hours`)
+                    : "N/A";
+
+                let avgWords = wordCounts[sender].length > 0 
+                    ? Math.round(wordCounts[sender].reduce((a, b) => a + b, 0) / wordCounts[sender].length) 
+                    : 0;
+
+                let avgLatencyMins = responseTimes[sender] && responseTimes[sender].length > 0 
+                    ? Math.round(responseTimes[sender].reduce((a, b) => a + b, 0) / responseTimes[sender].length) 
+                    : 0;
+                let latencyText = avgLatencyMins < 60 ? `${avgLatencyMins} mins` : `${(avgLatencyMins/60).toFixed(1)} hours`;
+
+                let windows = timeWindows[sender];
+                let peakWin = Object.keys(windows).reduce((a, b) => windows[a] > windows[b] ? a : b);
+                let peakWinText = peakWin === 'lateNight' ? 'Late Night (10pm-6am)' : peakWin.charAt(0).toUpperCase() + peakWin.slice(1);
+
+                let openerCount = morningFollowUps[sender].openers;
+                let carriedCount = morningFollowUps[sender].carriedAfter;
+                let carryScore = openerCount > 0 ? Math.round((carriedCount / openerCount) * 100) : 50;
+
+                let patternTag = "Balanced Engagement";
+                if (doubles > count * 0.15 && avgWords > 10) {
+                    patternTag = "Anxious Pattern (Higher double-texting & investment)";
+                } else if (avgLatencyMins > 120 && avgWords <= 6) {
+                    patternTag = "Avoidant Pattern (Delayed, minimal responses)";
+                }
+
+                let displayName = (sender === currentUser) ? `You (${sender})` : sender;
+
+                statsGrid.innerHTML += `
+                    <div class="stat-card">
+                        <h4>Audit Profile (${displayName})</h4>
+                        <div class="stat-value">${count.toLocaleString()} msgs (${pct}%)</div>
+                        <div class="stat-desc" style="margin-top:6px;">
+                            Started day first: <strong>${starts} times (${startPct}%)</strong><br>
+                            Avg Reply Time: <strong>${latencyText}</strong><br>
+                            Avg Message Length: <strong>${avgWords} words</strong><br>
+                            Voice Notes Sent: <strong>${vnCount}</strong><br>
+                            Questions Asked: <strong>${questions}</strong><br>
+                            Double Texts Sent: <strong>${doubles}</strong><br>
+                            Low-Effort Morning Check-ins: <strong>${breadcrumbs}</strong><br>
+                            Topic Carrying Score: <strong>${carryScore}% follow-through</strong><br>
+                            Peak Comm Window: <strong>${peakWinText}</strong><br>
+                            Calls Initiated: <strong>${cInitiated}</strong> (Proactive)<br>
+                            Calls Returned: <strong>${cReturned}</strong> (After missed)<br>
+                            Avg Call Return Speed: <strong>${callReturnText}</strong><br>
+                            Calls placed by ${sender} (missed by ${otherSender}): <strong>${cMissed}</strong><br>
+                            <span style="color: var(--jade-primary);">Style Dynamic: ${patternTag}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            let silentStreakDisplay = maxSilentHours < 24 ? `${Math.round(maxSilentHours)} hours` : `${(maxSilentHours/24).toFixed(1)} days`;
+
+            statsGrid.innerHTML += `
+                <div class="stat-card alert">
+                    <h4>Exact Energy Shift Date Range</h4>
+                    <div class="stat-value">${shiftDateRange}</div>
+                    <div class="stat-desc">Pinpoints the exact timeframe engagement and communication momentum sharply declined.</div>
+                </div>
+                <div class="stat-card alert">
+                    <h4>Longest Silent Streak</h4>
+                    <div class="stat-value">${silentStreakDisplay}</div>
+                    <div class="stat-desc">
+                        Maximum gap where chat went dead.<br>
+                        Left hanging by: <strong>${lastSenderBeforeSilence}</strong><br>
+                        Broke the silence: <strong>${breakerOfSilence}</strong>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h4>Peak Energy Date Range</h4>
+                    <div class="stat-value">${peakDateRange}</div>
+                    <div class="stat-desc">Highest activity window recorded at <strong>${maxVol}</strong> messages.</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Timeframe Scope</h4>
+                    <div class="stat-value">${totalDaysCount} Active Days</div>
+                    <div class="stat-desc">Filtered scope covers <strong>${messages.length.toLocaleString()} messages</strong>, <strong>${totalVoiceNotes} voice notes</strong> & <strong>${calls.length} calls</strong>.</div>
+                </div>
+            `;
+        }
+
+        function getWeekNumber(d) {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+            var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+            return weekNo;
+        }
+
+        function getWeekDateRange(weekStr) {
+            if (!weekStr || !weekStr.includes('-W')) return weekStr;
+            let parts = weekStr.split('-W');
+            let year = parseInt(parts[0]);
+            let week = parseInt(parts[1]);
+
+            let simple = new Date(year, 0, 1 + (week - 1) * 7);
+            let dow = simple.getDay();
+            let ISOweekStart = new Date(simple);
+            if (dow <= 4)
+                ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+            else
+                ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+
+            let ISOweekEnd = new Date(ISOweekStart);
+            ISOweekEnd.setDate(ISOweekStart.getDate() + 6);
+
+            const options = { month: 'short', day: 'numeric', year: 'numeric' };
+            return `${ISOweekStart.toLocaleDateString('en-US', options)} – ${ISOweekEnd.toLocaleDateString('en-US', options)}`;
+        }
+    </script>
+</body>
+</html>
