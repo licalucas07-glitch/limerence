@@ -647,47 +647,64 @@
         }
 
         function parseWhatsAppChat(fileContent) {
-            const linePatterns = [
-                /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4},\s+\d{1,2}:\d{2}(?::\d{2})?\s?(?:[APap][Mm])?)\]?\s*[-–]?\s*([^:]+):\s+([\s\S]*)$/,
-                /^(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}\s?(?:[APap][Mm])?)\s+-\s+([^:]+):\s+([\s\S]*)$/
-            ];
+            const messagePattern = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4},\s+\d{1,2}:\d{2}(?::\d{2})?\s?(?:[APap][Mm])?)\]?\s*[-–]?\s*([^:]+):\s+([\s\S]*)$/;
+            // Pattern for standalone WhatsApp system event lines (no sender colon)
+            const systemLinePattern = /^\[?(\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4},\s+\d{1,2}:\d{2}(?::\d{2})?\s?(?:[APap][Mm])?)\]?\s*[-–]?\s*([\s\S]*)$/;
 
             const lines = fileContent.split(/\r?\n/);
             let messages = [];
             let calls = [];
             let voiceNotes = [];
             let currentMessage = null;
+            let lastActiveSender = null;
 
             lines.forEach(line => {
                 let cleanLine = line.replace(/[\u200E\u200F\u202A-\u202E\u00A0]/g, '').trim();
                 if (!cleanLine) return;
 
-                let matched = false;
-                for (let pattern of linePatterns) {
-                    const match = cleanLine.match(pattern);
-                    if (match) {
+                const msgMatch = cleanLine.match(messagePattern);
+                if (msgMatch) {
+                    if (currentMessage) {
+                        messages.push(currentMessage);
+                        currentMessage = null;
+                    }
+
+                    let timestamp = msgMatch[1].trim();
+                    let sender = msgMatch[2].trim();
+                    let rawText = msgMatch[3].trim();
+                    let textLower = rawText.toLowerCase();
+
+                    let dateObj = parseTimestamp(timestamp);
+                    lastActiveSender = sender;
+
+                    let isVoiceNote = textLower.includes('audio') || 
+                                      textLower.includes('ptt') || 
+                                      textLower.includes('stemboodskap') || 
+                                      textLower.includes('voice note') ||
+                                      textLower.includes('.opus') ||
+                                      textLower.includes('.m4a');
+
+                    if (isVoiceNote) {
+                        voiceNotes.push({ rawTimestamp: timestamp, dateObj, sender, text: rawText });
+                    } else {
+                        currentMessage = { rawTimestamp: timestamp, dateObj, sender, text: rawText };
+                    }
+                } else {
+                    // Check if it's a standalone system line (like a WhatsApp call notification without a sender name)
+                    const sysMatch = cleanLine.match(systemLinePattern);
+                    if (sysMatch && !cleanLine.includes(':')) {
                         if (currentMessage) {
                             messages.push(currentMessage);
                             currentMessage = null;
                         }
 
-                        let timestamp = match[1].trim();
-                        let sender = match[2].trim();
-                        let rawText = match[3].trim();
+                        let timestamp = sysMatch[1].trim();
+                        let rawText = sysMatch[2].trim();
                         let textLower = rawText.toLowerCase();
-
                         let dateObj = parseTimestamp(timestamp);
 
-                        let isVoiceNote = textLower.includes('audio') || 
-                                          textLower.includes('ptt') || 
-                                          textLower.includes('stemboodskap') || 
-                                          textLower.includes('voice note') ||
-                                          textLower.includes('.opus') ||
-                                          textLower.includes('.m4a');
-
-                        // Strict check: Only count official WhatsApp system call log notices, never ordinary conversation containing the word "call"
-                        let isSystemCall = !isVoiceNote && (
-                                           textLower.includes('missed voice call') || 
+                        // Strict check for official system call notices
+                        let isSystemCall = textLower.includes('missed voice call') || 
                                            textLower.includes('missed video call') || 
                                            textLower.includes('gemiste oproep') || 
                                            textLower.includes('gemiste videoproep') ||
@@ -695,23 +712,27 @@
                                            textLower.includes('video call') ||
                                            textLower.includes('call duration') || 
                                            textLower.includes('duur van oproep') ||
-                                           textLower.includes('geen antwoord'));
+                                           textLower.includes('geen antwoord') ||
+                                           textLower.includes('voice call') ||
+                                           textLower.includes('video-oproep');
 
-                        if (isVoiceNote) {
-                            voiceNotes.push({ rawTimestamp: timestamp, dateObj, sender, text: rawText });
-                        } else if (isSystemCall) {
-                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste') || textLower.includes('no answer');
-                            calls.push({ rawTimestamp: timestamp, dateObj, caller: sender, text: rawText, missed: isMissed });
-                        } else {
-                            currentMessage = { rawTimestamp: timestamp, dateObj, sender, text: rawText };
+                        if (isSystemCall) {
+                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste') || textLower.includes('no answer') || textLower.includes('geen antwoord');
+                            
+                            // For a missed call, the caller is the other participant in a 2-person chat
+                            // We can assign it dynamically during audit analysis if needed, or track it
+                            calls.push({ 
+                                rawTimestamp: timestamp, 
+                                dateObj, 
+                                caller: lastActiveSender || "Unknown", 
+                                text: rawText, 
+                                missed: isMissed,
+                                isSystem: true 
+                            });
                         }
-                        matched = true;
-                        break;
+                    } else if (currentMessage) {
+                        currentMessage.text += '\n' + cleanLine;
                     }
-                }
-
-                if (!matched && currentMessage) {
-                    currentMessage.text += '\n' + cleanLine;
                 }
             });
 
@@ -763,10 +784,25 @@
 
             const senders = {};
             messages.forEach(msg => { senders[msg.sender] = (senders[msg.sender] || 0) + 1; });
-            calls.forEach(c => { if (!senders[c.caller]) senders[c.caller] = 0; });
             voiceNotes.forEach(v => { if (!senders[v.sender]) senders[v.sender] = 0; });
 
             const senderKeys = Object.keys(senders);
+            const otherUser = senderKeys.find(s => s !== currentUser) || "the other person";
+
+            // Properly attribute system calls where caller wasn't explicitly prefixed
+            calls.forEach(c => {
+                if (c.isSystem) {
+                    if (c.missed) {
+                        // If it's a missed call, the other person called you and you missed it (so caller = otherUser)
+                        c.caller = otherUser;
+                    } else {
+                        // For outgoing/completed calls, attribute to the current user or alternate based on context
+                        c.caller = currentUser;
+                    }
+                }
+                if (!senders[c.caller]) senders[c.caller] = 0;
+            });
+
             const totalMessages = messages.length;
             const totalVoiceNotes = voiceNotes.length;
             
@@ -947,8 +983,6 @@
                 let cReturned = callStats[sender] ? callStats[sender].returned : 0;
                 let cMissed = callStats[sender] ? callStats[sender].missed : 0;
 
-                let otherSender = senderKeys.find(s => s !== sender) || "the other person";
-
                 let avgCallReturnMins = callReturnTimes[sender] && callReturnTimes[sender].length > 0
                     ? Math.round(callReturnTimes[sender].reduce((a, b) => a + b, 0) / callReturnTimes[sender].length)
                     : null;
@@ -1000,7 +1034,7 @@
                             Calls Initiated: <strong>${cInitiated}</strong> (Proactive)<br>
                             Calls Returned: <strong>${cReturned}</strong> (After missed)<br>
                             Avg Call Return Speed: <strong>${callReturnText}</strong><br>
-                            Calls placed by ${sender} (missed by ${otherSender}): <strong>${cMissed}</strong><br>
+                            Calls placed by ${sender} (missed by ${otherUser}): <strong>${cMissed}</strong><br>
                             <span style="color: var(--jade-primary);">Style Dynamic: ${patternTag}</span>
                         </div>
                     </div>
