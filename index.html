@@ -209,15 +209,9 @@
             background-color: var(--jade-glow);
         }
 
+        /* Completely hidden file input triggered programmatically for 100% reliability */
         input[type="file"] {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            cursor: pointer;
-            z-index: 20;
+            display: none;
         }
 
         /* Config Section */
@@ -524,6 +518,11 @@
         const chatOverview = document.getElementById('chat-overview');
         const statsGrid = document.getElementById('stats-grid');
         const dropzone = document.getElementById('dropzone');
+
+        // Bulletproof click trigger for file input
+        dropzone.addEventListener('click', () => {
+            fileInput.click();
+        });
 
         // Prevent browser from opening dropped files in tab
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -1067,4 +1066,33 @@
         }
 
         function getWeekNumber(d) {
-            d = new Date(
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+            var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+            return weekNo;
+        }
+
+        function getWeekDateRange(weekStr) {
+            if (!weekStr || !weekStr.includes('-W')) return weekStr;
+            let parts = weekStr.split('-W');
+            let year = parseInt(parts[0]);
+            let week = parseInt(parts[1]);
+
+            let simple = new Date(year, 0, 1 + (week - 1) * 7);
+            let dow = simple.getDay();
+            let ISOweekStart = new Date(simple);
+            if (dow <= 4)
+                ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+            else
+                ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+
+            let ISOweekEnd = new Date(ISOweekStart);
+            ISOweekEnd.setDate(ISOweekStart.getDate() + 6);
+
+            const options = { month: 'short', day: 'numeric', year: 'numeric' };
+            return `${ISOweekStart.toLocaleDateString('en-US', options)} – ${ISOweekEnd.toLocaleDateString('en-US', options)}`;
+        }
+    </script>
+</body>
+</html>
