@@ -185,6 +185,8 @@
             display: inline-block;
             transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
             box-shadow: 0 4px 12px var(--jade-glow);
+            position: relative;
+            z-index: 2; /* Ensures button remains above file input if needed, or adjust */
         }
 
         .btn:hover {
@@ -209,6 +211,7 @@
             background-color: var(--jade-glow);
         }
 
+        /* Full coverage clickable file input overlay */
         input[type="file"] {
             position: absolute;
             top: 0;
@@ -217,7 +220,7 @@
             height: 100%;
             opacity: 0;
             cursor: pointer;
-            z-index: 10;
+            z-index: 20;
         }
 
         /* Config Section */
@@ -770,72 +773,4 @@
 
             const filteredMessages = globalMessages.filter(m => m.dateObj >= startLimit && m.dateObj <= endLimit);
             const filteredCalls = globalCalls.filter(c => c.dateObj >= startLimit && c.dateObj <= endLimit);
-            const filteredVoiceNotes = globalVoiceNotes.filter(v => v.dateObj >= startLimit && v.dateObj <= endLimit);
-
-            runAuditAnalytics(filteredMessages, filteredCalls, filteredVoiceNotes);
-        }
-
-        function runAuditAnalytics(messages, calls, voiceNotes) {
-            resultsContainer.style.display = 'block';
-            const currentUser = userSelect.value;
-
-            const senders = {};
-            messages.forEach(msg => { senders[msg.sender] = (senders[msg.sender] || 0) + 1; });
-            voiceNotes.forEach(v => { if (!senders[v.sender]) senders[v.sender] = 0; });
-
-            const senderKeys = Object.keys(senders);
-            const otherUser = senderKeys.find(s => s !== currentUser) || "the other person";
-
-            calls.forEach(c => {
-                if (c.isSystem) {
-                    if (c.caller === "Unknown" || !senders[c.caller]) {
-                        // If it's a missed system call notification, it means the other person called you and you missed it.
-                        // Therefore, the caller is the other user. If it's completed, default to current user if ambiguous.
-                        c.caller = c.missed ? otherUser : currentUser;
-                    }
-                }
-                if (!senders[c.caller]) senders[c.caller] = currentUser;
-            });
-
-            const totalMessages = messages.length;
-            const totalVoiceNotes = voiceNotes.length;
-            
-            chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages,${totalVoiceNotes} voice notes, and ${calls.length} calls across${senderKeys.join(' & ')} within the selected timeframe. (Viewing as: ${currentUser})`;  let responseTimes = {}; let callReturnTimes = {}; let dailyInitiators = {}; let lowEffortOpeners = {}; let doubleTexts = {}; let questionCounts = {}; let wordCounts = {}; let callStats = {}; let voiceNoteCounts = {}; let deletedMessageCounts = {}; let timeWindows = {}; let morningFollowUps = {};  senderKeys.forEach(s => { responseTimes[s] = []; callReturnTimes[s] = []; dailyInitiators[s] = 0; lowEffortOpeners[s] = 0; doubleTexts[s] = 0; questionCounts[s] = 0; wordCounts[s] = []; callStats[s] = { initiated: 0, returned: 0, missed: 0, total: 0 }; voiceNoteCounts[s] = 0; deletedMessageCounts[s] = 0; timeWindows[s] = { morning: 0, afternoon: 0, evening: 0, lateNight: 0 }; morningFollowUps[s] = { openers: 0, carriedAfter: 0 }; });  voiceNotes.forEach(v => { if (voiceNoteCounts[v.sender] !== undefined) voiceNoteCounts[v.sender]++; });  messages.forEach(msg => { let tLower = msg.text.toLowerCase(); if (tLower.includes('this message was deleted') \vert{}\vert{} tLower.includes('you deleted this message') \vert{}\vert{} tLower.includes('hierdie boodskap is uitgevee') \vert{}\vert{} tLower.includes('jy het hierdie boodskap uitgevee')) { if (deletedMessageCounts[msg.sender] !== undefined) { deletedMessageCounts[msg.sender]++; } } });  calls.forEach((c, idx) => { if (!callStats[c.caller]) { callStats[c.caller] = { initiated: 0, returned: 0, missed: 0, total: 0 }; }  if (c.missed) { callStats[c.caller].missed++; } else { let isReturned = false; for (let p = idx - 1; p >= 0; p--) { let prevCall = calls[p]; let timeDiffMins = (c.dateObj - prevCall.dateObj) / (1000 * 60); if (timeDiffMins > 1440) break;  if (prevCall.caller !== c.caller && prevCall.missed) { isReturned = true; callReturnTimes[c.caller].push(timeDiffMins); break; } }  if (isReturned) callStats[c.caller].returned++; else callStats[c.caller].initiated++; callStats[c.caller].total++; } });  let activeDays = new Set(); let lastDayStr = ""; let weeklyVolume = {}; let maxSilentHours = 0; let lastSenderBeforeSilence = "N/A"; let breakerOfSilence = "N/A";  messages.forEach((msg, i) => { let dayStr = msg.dateObj.toISOString().split('T')[0]; activeDays.add(dayStr);  if (dayStr !== lastDayStr) { dailyInitiators[msg.sender] = (dailyInitiators[msg.sender] \vert{}\vert{} 0) + 1; lastDayStr = dayStr; }  let text = msg.text.trim(); let words = text.split(/\s+/); wordCounts[msg.sender].push(words.length);  if (text.includes('?')) questionCounts[msg.sender]++;  let hour = msg.dateObj.getHours(); if (hour >= 6 && hour < 12) timeWindows[msg.sender].morning++; else if (hour >= 12 && hour < 17) timeWindows[msg.sender].afternoon++; else if (hour >= 17 && hour < 22) timeWindows[msg.sender].evening++; else timeWindows[msg.sender].lateNight++;  if (hour >= 6 && hour < 10 && words.length <= 5) { lowEffortOpeners[msg.sender]++; morningFollowUps[msg.sender].openers++;  let participantCarried = false; for (let j = i + 1; j < Math.min(i + 4, messages.length); j++) { if (messages[j].sender === msg.sender) participantCarried = true; } if (participantCarried) morningFollowUps[msg.sender].carriedAfter++; }  if (i > 0) { let prev = messages[i - 1]; let diffHours = (msg.dateObj - prev.dateObj) / (1000 * 60 * 60); if (diffHours > maxSilentHours) { maxSilentHours = diffHours; lastSenderBeforeSilence = prev.sender; breakerOfSilence = msg.sender; }  if (msg.sender === prev.sender) { doubleTexts[msg.sender]++; } else { let diffMinutes = diffHours * 60; if (diffMinutes > 0 && diffMinutes < 1440) responseTimes[msg.sender].push(diffMinutes); } }  let year = msg.dateObj.getFullYear(); let weekNum = getWeekNumber(msg.dateObj); let weekKey = `${year}-W${weekNum}`; weeklyVolume[weekKey] = (weeklyVolume[weekKey] \vert{}\vert{} 0) + 1; });  let totalDaysCount = activeDays.size \vert{}\vert{} 1;  let weeks = Object.keys(weeklyVolume).sort(); let peakWeekKey = weeks[0]; let maxVol = 0; let shiftWeekKey = null; let maxDrop = 0;  weeks.forEach((w, i) => { let vol = weeklyVolume[w]; if (vol > maxVol) { maxVol = vol; peakWeekKey = w; } if (i > 0) { let prevVol = weeklyVolume[weeks[i - 1]]; let drop = prevVol - vol; if (drop > maxDrop && prevVol > 30 && (drop / prevVol) > 0.35) { maxDrop = drop; shiftWeekKey = w; } } });  let peakDateRange = getWeekDateRange(peakWeekKey); let shiftDateRange = shiftWeekKey ? getWeekDateRange(shiftWeekKey) : "Stable / Consistent flow";  statsGrid.innerHTML = '';  senderKeys.forEach(sender => { let count = senders[sender] \vert{}\vert{} 0; let pct = totalMessages > 0 ? ((count / totalMessages) * 100).toFixed(1) : "0.0"; let starts = dailyInitiators[sender] \vert{}\vert{} 0; let startPct = ((starts / totalDaysCount) * 100).toFixed(1); let breadcrumbs = lowEffortOpeners[sender] \vert{}\vert{} 0; let doubles = doubleTexts[sender] \vert{}\vert{} 0; let questions = questionCounts[sender] \vert{}\vert{} 0; let vnCount = voiceNoteCounts[sender] \vert{}\vert{} 0; let deletedCount = deletedMessageCounts[sender] \vert{}\vert{} 0;  let cInitiated = callStats[sender] ? callStats[sender].initiated : 0; let cReturned = callStats[sender] ? callStats[sender].returned : 0; let cMissed = callStats[sender] ? callStats[sender].missed : 0;  let avgCallReturnMins = callReturnTimes[sender] && callReturnTimes[sender].length > 0 ? Math.round(callReturnTimes[sender].reduce((a, b) => a + b, 0) / callReturnTimes[sender].length) : null; let callReturnText = avgCallReturnMins !== null ? (avgCallReturnMins < 60 ? `${avgCallReturnMins} mins` : `${(avgCallReturnMins/60).toFixed(1)} hours`) : "N/A";  let avgWords = wordCounts[sender].length > 0 ? Math.round(wordCounts[sender].reduce((a, b) => a + b, 0) / wordCounts[sender].length) : 0;  let avgLatencyMins = responseTimes[sender] && responseTimes[sender].length > 0 ? Math.round(responseTimes[sender].reduce((a, b) => a + b, 0) / responseTimes[sender].length) : 0; let latencyText = avgLatencyMins < 60 ? `${avgLatencyMins} mins` : `${(avgLatencyMins/60).toFixed(1)} hours`;  let windows = timeWindows[sender]; let peakWin = Object.keys(windows).reduce((a, b) => windows[a] > windows[b] ? a : b); let peakWinText = peakWin === 'lateNight' ? 'Late Night (10pm-6am)' : peakWin.charAt(0).toUpperCase() + peakWin.slice(1);  let openerCount = morningFollowUps[sender].openers; let carriedCount = morningFollowUps[sender].carriedAfter; let carryScore = openerCount > 0 ? Math.round((carriedCount / openerCount) * 100) : 50;  let patternTag = "Balanced Engagement"; if (doubles > count * 0.15 && avgWords > 10) { patternTag = "Anxious Pattern (Higher double-texting & investment)"; } else if (avgLatencyMins > 120 && avgWords <= 6) { patternTag = "Avoidant Pattern (Delayed, minimal responses)"; }  let displayName = (sender === currentUser) ? `You (${sender})` : sender;
-                let targetMissedUser = (sender === currentUser) ? otherUser : sender;
-
-                statsGrid.innerHTML += `
-                    <div class="stat-card">
-                        <h4>Audit Profile (${displayName})</h4>
-                        <div class="stat-value">${count.toLocaleString()} msgs (${pct}%)</div>
-                        <div class="stat-desc" style="margin-top:6px;">
-                            Started day first: <strong>${starts} times (${startPct}%)</strong><br>
-                            Avg Reply Time: <strong>${latencyText}</strong><br>
-                            Avg Message Length: <strong>${avgWords} words</strong><br>
-                            Voice Notes Sent: <strong>${vnCount}</strong><br>
-                            Messages Deleted: <strong>${deletedCount}</strong><br>
-                            Questions Asked: <strong>${questions}</strong><br>
-                            Double Texts Sent: <strong>${doubles}</strong><br>
-                            Low-Effort Morning Check-ins: <strong>${breadcrumbs}</strong><br>
-                            Topic Carrying Score: <strong>${carryScore}% follow-through</strong><br>
-                            Peak Comm Window: <strong>${peakWinText}</strong><br>
-                            Calls Initiated: <strong>${cInitiated}</strong> (Proactive)<br>
-                            Calls Returned: <strong>${cReturned}</strong> (After missed)<br>
-                            Avg Call Return Speed: <strong>${callReturnText}</strong><br>
-                            Calls placed by ${sender} (missed by ${targetMissedUser}): <strong>${cMissed}</strong><br>
-                            <span style="color: var(--jade-primary);">Style Dynamic: ${patternTag}</span>
-                        </div>
-                    </div>
-                `;
-            });
-
-            let silentStreakDisplay = maxSilentHours < 24 ? `${Math.round(maxSilentHours)} hours` : `${(maxSilentHours/24).toFixed(1)} days`;
-
-            statsGrid.innerHTML += `
-                <div class="stat-card alert">
-                    <h4>Exact Energy Shift Date Range</h4>
-                    <div class="stat-value">${shiftDateRange}</div>
-                    <div class="stat-desc">Pinpoints the exact timeframe engagement and communication momentum sharply declined.</div>
-                </div>
-                <div class="stat-card alert">
-                    <h4>Longest Silent Streak</h4>
-                    <div class="stat-value">${silentStreakDisplay}</div>
+            const filteredVoiceNotes = globalVoiceNotes.filter(v => v.dateObj >= start
