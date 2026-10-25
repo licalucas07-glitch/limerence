@@ -683,7 +683,6 @@
                                       textLower.includes('.opus') ||
                                       textLower.includes('.m4a');
 
-                    // Also catch calls that happen to be formatted with a sender prefix
                     let isCall = textLower.includes('call') || textLower.includes('oproep') || textLower.includes('gesprek');
 
                     if (isVoiceNote) {
@@ -714,7 +713,6 @@
                         let textLower = rawText.toLowerCase();
                         let dateObj = parseTimestamp(timestamp);
 
-                        // Broad check for any system notification line containing call terminology globally
                         let isSystemCall = textLower.includes('call') || textLower.includes('oproep') || textLower.includes('gesprek');
 
                         if (isSystemCall) {
@@ -787,7 +785,6 @@
             const senderKeys = Object.keys(senders);
             const otherUser = senderKeys.find(s => s !== currentUser) || "the other person";
 
-            // Properly attribute calls
             calls.forEach(c => {
                 if (c.isSystem) {
                     if (c.caller === "Unknown" || !senders[c.caller]) {
@@ -1011,6 +1008,7 @@
                 }
 
                 let displayName = (sender === currentUser) ? `You (${sender})` : sender;
+                let targetMissedUser = (sender === currentUser) ? otherUser : sender;
 
                 statsGrid.innerHTML += `
                     <div class="stat-card">
@@ -1030,7 +1028,7 @@
                             Calls Initiated: <strong>${cInitiated}</strong> (Proactive)<br>
                             Calls Returned: <strong>${cReturned}</strong> (After missed)<br>
                             Avg Call Return Speed: <strong>${callReturnText}</strong><br>
-                            Calls placed by ${sender} (missed by ${otherUser}): <strong>${cMissed}</strong><br>
+                            Calls placed by ${sender} (missed by ${targetMissedUser}): <strong>${cMissed}</strong><br>
                             <span style="color: var(--jade-primary);">Style Dynamic: ${patternTag}</span>
                         </div>
                     </div>
