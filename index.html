@@ -120,7 +120,7 @@
 
         .tutorial-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 16px;
         }
 
@@ -136,7 +136,7 @@
             line-height: 1.4;
         }
 
-        /* Dropzone Styling */
+        /* Dropzone Styling with Native Transparent File Input Overlay */
         .dropzone {
             background-color: var(--card-bg);
             border: 2px dashed var(--jade-primary);
@@ -147,6 +147,7 @@
             position: relative;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
             margin-bottom: 24px;
+            overflow: hidden;
         }
 
         .dropzone:hover, .dropzone.dragover {
@@ -183,12 +184,7 @@
             cursor: pointer;
             transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
             box-shadow: 0 4px 12px var(--jade-glow);
-        }
-
-        .btn:hover {
-            background-color: var(--jade-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px var(--jade-glow);
+            pointer-events: none; /* Let clicks pass through button to native input overlay */
         }
 
         .btn-secondary {
@@ -207,8 +203,16 @@
             background-color: var(--jade-glow);
         }
 
+        /* Native file input stretched invisibly across the whole dropzone area for 100% reliable mobile & desktop touch interaction */
         input[type="file"] {
-            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 10;
         }
 
         /* Setup / Config Bar */
@@ -401,22 +405,26 @@
             <div class="tutorial-grid">
                 <div class="tutorial-step">
                     <h5>📱 iPhone (iOS)</h5>
-                    <p>Open WhatsApp chat &rarr; Tap contact name at top &rarr; Scroll down &rarr; Tap <strong>Export Chat</strong> &rarr; Select <strong>Without Media</strong> &rarr; Save to Files.</p>
+                    <p>Open chat &rarr; Tap contact name &rarr; Scroll down &rarr; Tap <strong>Export Chat</strong> &rarr; Select <strong>Without Media</strong> &rarr; Save to Files.</p>
                 </div>
                 <div class="tutorial-step">
                     <h5>🤖 Android</h5>
-                    <p>Open WhatsApp chat &rarr; Tap three dots (top right) &rarr; Tap <strong>More</strong> &rarr; Tap <strong>Export chat</strong> &rarr; Select <strong>Without Media</strong> &rarr; Save/Share file.</p>
+                    <p>Open chat &rarr; Tap 3 dots (top right) &rarr; Tap <strong>More</strong> &rarr; Tap <strong>Export chat</strong> &rarr; Select <strong>Without Media</strong> &rarr; Save/Share file.</p>
+                </div>
+                <div class="tutorial-step">
+                    <h5>💻 Desktop (PC / Mac)</h5>
+                    <p>Open WhatsApp Desktop / Web &rarr; Open chat &rarr; Click contact name at top &rarr; Scroll down &rarr; Click <strong>Export chat</strong> &rarr; Save `.txt` file.</p>
                 </div>
             </div>
         </div>
 
-        <!-- Dropzone Box -->
-        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click();">
+        <!-- Dropzone Box with Stretched Native File Input -->
+        <div class="dropzone" id="dropzone">
             <div class="dropzone-icon">📂</div>
             <h3>Tap here or upload your WhatsApp <code>_chat.txt</code> file</h3>
             <p>Works seamlessly on iPhone, Android, and desktop browsers.</p>
             <button class="btn" type="button">Select File</button>
-            <input type="file" id="fileInput" accept=".txt, .TXT, text/plain, *" style="display: none;">
+            <input type="file" id="fileInput" accept=".txt, .TXT, text/plain, *">
         </div>
 
         <!-- Configuration & Date Range Section -->
@@ -435,7 +443,7 @@
                     <label for="endDate">End Date</label>
                     <input type="date" id="endDate" onclick="this.showPicker && this.showPicker()">
                 </div>
-                <button class="btn" id="applyFilterBtn" type="button" style="height: 42px;">Apply Range</button>
+                <button class="btn" id="applyFilterBtn" type="button" style="height: 42px; pointer-events: auto;">Apply Range</button>
             </div>
             <!-- Quick Range Presets -->
             <div class="quick-presets">
@@ -769,5 +777,4 @@
                             Peak Comm Window: <strong>${peakWinText}</strong><br>
                             Calls Initiated: <strong>${cInitiated}</strong> (Proactive)<br>
                             Calls Returned: <strong>${cReturned}</strong> (After missed)<br>
-                            Avg Call Return Speed: <strong>${callReturnText}</strong><br>
-                            Calls placed by ${sender} (missed by ${otherSender}): <strong>${cMissed}</strong><br>
+                            Avg Call Return Speed
