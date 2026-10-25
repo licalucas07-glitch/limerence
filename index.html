@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>unlinked: Limerence | Relationship Audit</title>
+    <title>unlinked: Limerence | Objective Relationship & Chat Audit</title>
+    <!-- Primary SEO & Social Preview Meta Tags -->
+    <meta name="title" content="unlinked: Limerence | Objective Relationship & Chat Audit">
+    <meta name="description" content="Stop over-analyzing mixed signals. Upload your WhatsApp chat log for a private, zero-server audit of response times, reciprocity, energy shifts, and voice notes.">
+    <meta name="robots" content="index, follow">
     <style>
         :root {
             --bg-dark: #070b14;
@@ -56,8 +60,35 @@
         header p {
             color: var(--text-muted);
             font-size: 1.1rem;
-            margin-bottom: 30px;
+            margin-bottom: 24px;
             line-height: 1.5;
+        }
+
+        /* Documentation / Disclaimers Box */
+        .disclaimer-box {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 18px 22px;
+            margin-bottom: 24px;
+            text-align: left;
+            box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.4);
+        }
+
+        .disclaimer-box h3 {
+            font-size: 0.95rem;
+            color: var(--jade-primary);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .disclaimer-box p {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            line-height: 1.5;
+            margin-bottom: 6px;
         }
 
         /* Dropzone Styling */
@@ -275,8 +306,16 @@
     <div class="container">
         <header>
             <h1>Turn romantic chaos into <span>objective reality.</span></h1>
-            <p>Stop over-analyzing mixed signals. Upload your WhatsApp chat log to audit reciprocity, detect low-effort patterns, and uncover the exact week the energy shifted.</p>
+            <p>Stop over-analyzing mixed signals. Upload your WhatsApp chat log to audit reciprocity, detect low-effort patterns, and uncover the exact timeframe the energy shifted.</p>
         </header>
+
+        <!-- Privacy & Disclaimers Box -->
+        <div class="disclaimer-box">
+            <h3>🔒 100% Privacy & Zero-Server Guarantee</h3>
+            <p>Your chat logs never leave your device. All parsing and analytics execute locally in your browser's memory. No data, messages, or metadata are ever stored or transmitted externally.</p>
+            <h3 style="margin-top: 10px; color: var(--text-light);">⚖️ Disclaimer & User Discretion</h3>
+            <p>This tool provides statistical metadata insights (such as response times and frequency metrics) for informational and self-reflection purposes only. Results should be interpreted at your own discretion.</p>
+        </div>
 
         <!-- Dropzone Box -->
         <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click();">
@@ -332,6 +371,7 @@
     <script>
         let globalMessages = [];
         let globalCalls = [];
+        let globalVoiceNotes = [];
         let minFileDate = null;
         let maxFileDate = null;
         let detectedSenders = [];
@@ -396,15 +436,17 @@
                 const parsedData = parseWhatsAppChat(content);
                 globalMessages = parsedData.messages;
                 globalCalls = parsedData.calls;
+                globalVoiceNotes = parsedData.voiceNotes;
 
-                if (globalMessages.length === 0 && globalCalls.length === 0) {
-                    showError("Could not parse any valid messages or calls. Please verify the file is an exported WhatsApp chat text file.");
+                if (globalMessages.length === 0 && globalCalls.length === 0 && globalVoiceNotes.length === 0) {
+                    showError("Could not parse any valid messages, calls, or voice notes. Please verify the file is an exported WhatsApp chat text file.");
                     return;
                 }
 
                 let sendersSet = new Set();
                 globalMessages.forEach(m => sendersSet.add(m.sender));
                 globalCalls.forEach(c => sendersSet.add(c.caller));
+                globalVoiceNotes.forEach(v => sendersSet.add(v.sender));
                 detectedSenders = Array.from(sendersSet);
 
                 userSelect.innerHTML = '';
@@ -418,7 +460,11 @@
                     userSelect.appendChild(opt);
                 });
 
-                let allDates = [...globalMessages.map(m => m.dateObj), ...globalCalls.map(c => c.dateObj)];
+                let allDates = [
+                    ...globalMessages.map(m => m.dateObj), 
+                    ...globalCalls.map(c => c.dateObj),
+                    ...globalVoiceNotes.map(v => v.dateObj)
+                ];
                 allDates.sort((a, b) => a - b);
 
                 minFileDate = allDates[0];
@@ -470,6 +516,7 @@
             const lines = fileContent.split('\n');
             let messages = [];
             let calls = [];
+            let voiceNotes = [];
             let currentMessage = null;
 
             lines.forEach(line => {
@@ -488,14 +535,29 @@
                         let text = match[3].trim();
                         let textLower = text.toLowerCase();
 
-                        // Detect calls (including "No answer", "Gemiste oudio-oproep", durations, etc.)
-                        let isCall = textLower.includes('call') || textLower.includes('oproep') || 
+                        // Detect Voice Notes (e.g., "audio omitted", "oudio weggelaat", "audio omitido", etc.)
+                        let isVoiceNote = textLower.includes('audio omitted') || 
+                                          textLower.includes('oudio weggelaat') || 
+                                          textLower.includes('audio omitido') || 
+                                          textLower.includes('voice note') || 
+                                          textLower.includes('stemboodskap');
+
+                        // Detect Calls
+                        let isCall = !isVoiceNote && (
+                                     textLower.includes('call') || textLower.includes('oproep') || 
                                      textLower.includes('min') || textLower.includes('sec') || 
                                      textLower.includes('duur') || textLower.includes('missed') || 
                                      textLower.includes('gemiste') || textLower.includes('no answer') || 
-                                     textLower.includes('geen antwoord');
+                                     textLower.includes('geen antwoord'));
 
-                        if (isCall) {
+                        if (isVoiceNote) {
+                            voiceNotes.push({
+                                rawTimestamp: timestamp,
+                                dateObj: parseTimestamp(timestamp),
+                                sender: sender,
+                                text: text
+                            });
+                        } else if (isCall) {
                             let isMissed = textLower.includes('missed') || textLower.includes('gemiste') || textLower.includes('no answer') || textLower.includes('geen antwoord');
                             calls.push({
                                 rawTimestamp: timestamp,
@@ -526,7 +588,7 @@
                 messages.push(currentMessage);
             }
 
-            return { messages, calls };
+            return { messages, calls, voiceNotes };
         }
 
         function parseTimestamp(tsStr) {
@@ -554,11 +616,12 @@
 
             const filteredMessages = globalMessages.filter(m => m.dateObj >= startLimit && m.dateObj <= endLimit);
             const filteredCalls = globalCalls.filter(c => c.dateObj >= startLimit && c.dateObj <= endLimit);
+            const filteredVoiceNotes = globalVoiceNotes.filter(v => v.dateObj >= startLimit && v.dateObj <= endLimit);
 
-            runAuditAnalytics(filteredMessages, filteredCalls);
+            runAuditAnalytics(filteredMessages, filteredCalls, filteredVoiceNotes);
         }
 
-        function runAuditAnalytics(messages, calls) {
+        function runAuditAnalytics(messages, calls, voiceNotes) {
             resultsContainer.style.display = 'block';
             const currentUser = userSelect.value;
 
@@ -570,11 +633,15 @@
             calls.forEach(c => {
                 if (!senders[c.caller]) senders[c.caller] = 0;
             });
+            voiceNotes.forEach(v => {
+                if (!senders[v.sender]) senders[v.sender] = 0;
+            });
 
             const senderKeys = Object.keys(senders);
             const totalMessages = messages.length;
+            const totalVoiceNotes = voiceNotes.length;
             
-            chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages and ${calls.length} calls across ${senderKeys.join(' & ')} within the selected timeframe. (Viewing as: ${currentUser})`;
+            chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages, ${totalVoiceNotes} voice notes, and ${calls.length} calls across ${senderKeys.join(' & ')} within the selected timeframe. (Viewing as: ${currentUser})`;
 
             let responseTimes = {};
             senderKeys.forEach(s => responseTimes[s] = []);
@@ -584,6 +651,7 @@
             let questionCounts = {};
             let wordCounts = {};
             let callStats = {};
+            let voiceNoteCounts = {};
             let timeWindows = {};
             let morningFollowUps = {};
 
@@ -593,25 +661,29 @@
                 doubleTexts[s] = 0;
                 questionCounts[s] = 0;
                 wordCounts[s] = [];
-                // Separating initiated, returned, and missed calls
                 callStats[s] = { initiated: 0, returned: 0, missed: 0, total: 0 };
+                voiceNoteCounts[s] = 0;
                 timeWindows[s] = { morning: 0, afternoon: 0, evening: 0, lateNight: 0 };
                 morningFollowUps[s] = { openers: 0, carriedAfter: 0 };
             });
 
-            // Smart Call Classification: Check if a call was a returned call (called back within 30 mins of a missed call from the other person)
+            voiceNotes.forEach(v => {
+                if (voiceNoteCounts[v.sender] !== undefined) {
+                    voiceNoteCounts[v.sender]++;
+                }
+            });
+
             calls.forEach((c, idx) => {
                 if (!callStats[c.caller]) return;
 
                 if (c.missed) {
                     callStats[c.caller].missed++;
                 } else {
-                    // Check backwards to see if there was a missed call from the *other* person within the last 30 minutes
                     let isReturned = false;
                     for (let p = idx - 1; p >= 0; p--) {
                         let prevCall = calls[p];
                         let timeDiffMins = (c.dateObj - prevCall.dateObj) / (1000 * 60);
-                        if (timeDiffMins > 30) break; // Exceeds window
+                        if (timeDiffMins > 30) break;
 
                         if (prevCall.caller !== c.caller && prevCall.missed) {
                             isReturned = true;
@@ -678,8 +750,8 @@
                     let diffHours = (msg.dateObj - prev.dateObj) / (1000 * 60 * 60);
                     if (diffHours > maxSilentHours) {
                         maxSilentHours = diffHours;
-                        lastSenderBeforeSilence = prev.sender; // Who left them hanging
-                        breakerOfSilence = msg.sender;       // Who made contact again to end streak
+                        lastSenderBeforeSilence = prev.sender;
+                        breakerOfSilence = msg.sender;
                     }
 
                     if (msg.sender === prev.sender) {
@@ -735,6 +807,7 @@
                 let breadcrumbs = lowEffortOpeners[sender] || 0;
                 let doubles = doubleTexts[sender] || 0;
                 let questions = questionCounts[sender] || 0;
+                let vnCount = voiceNoteCounts[sender] || 0;
                 
                 let cInitiated = callStats[sender] ? callStats[sender].initiated : 0;
                 let cReturned = callStats[sender] ? callStats[sender].returned : 0;
@@ -774,6 +847,7 @@
                             Started day first: <strong>${starts} times (${startPct}%)</strong><br>
                             Avg Reply Time: <strong>${latencyText}</strong><br>
                             Avg Message Length: <strong>${avgWords} words</strong><br>
+                            Voice Notes Sent: <strong>${vnCount}</strong><br>
                             Questions Asked: <strong>${questions}</strong><br>
                             Double Texts Sent: <strong>${doubles}</strong><br>
                             Low-Effort Morning Check-ins: <strong>${breadcrumbs}</strong><br>
@@ -813,7 +887,7 @@
                 <div class="stat-card">
                     <h4>Timeframe Scope</h4>
                     <div class="stat-value">${totalDaysCount} Active Days</div>
-                    <div class="stat-desc">Filtered scope covers <strong>${messages.length.toLocaleString()} messages</strong> & <strong>${calls.length} calls</strong>.</div>
+                    <div class="stat-desc">Filtered scope covers <strong>${messages.length.toLocaleString()} messages</strong>, <strong>${totalVoiceNotes} voice notes</strong> & <strong>${calls.length} calls</strong>.</div>
                 </div>
             `;
         }
