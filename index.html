@@ -72,7 +72,7 @@
             line-height: 1.5;
         }
 
-        /* Documentation & Disclaimers Box */
+        /* Privacy & Disclaimers Box */
         .disclaimer-box {
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -99,7 +99,7 @@
             margin-bottom: 6px;
         }
 
-        /* Tutorial / How-to Guide Box */
+        /* How-To Tutorial Box */
         .tutorial-box {
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -137,23 +137,15 @@
             line-height: 1.4;
         }
 
-        /* Dropzone Styling */
+        /* Dropzone & Upload Input Box */
         .dropzone {
             background-color: var(--card-bg);
             border: 2px dashed var(--jade-primary);
             border-radius: 16px;
             padding: 35px 30px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            display: block;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
             margin-bottom: 24px;
-        }
-
-        .dropzone:hover, .dropzone.dragover {
-            border-color: #5eead4;
-            background-color: #131f36;
-            box-shadow: 0 0 25px var(--jade-glow);
+            position: relative;
         }
 
         .dropzone-icon {
@@ -177,8 +169,8 @@
             background-color: var(--jade-primary);
             color: #070b14;
             border: none;
-            padding: 10px 24px;
-            font-size: 0.95rem;
+            padding: 12px 28px;
+            font-size: 1rem;
             font-weight: 700;
             border-radius: 8px;
             cursor: pointer;
@@ -209,11 +201,17 @@
             background-color: var(--jade-glow);
         }
 
+        /* Direct, clean File Input Button */
         input[type="file"] {
-            display: none;
+            display: block;
+            margin: 0 auto;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 10px;
         }
 
-        /* Setup / Config Bar */
+        /* Config Section */
         #config-section {
             display: none;
             background-color: var(--card-bg);
@@ -426,7 +424,7 @@
             <p>This tool provides statistical metadata insights (such as response times and frequency metrics) for informational and self-reflection purposes only. Results should be interpreted at your own discretion.</p>
         </div>
 
-        <!-- How-to Tutorial Box -->
+        <!-- How-To Guide Box -->
         <div class="tutorial-box">
             <h3>📖 Quick Guide: How to Export Your Chat</h3>
             <div class="tutorial-grid">
@@ -445,14 +443,13 @@
             </div>
         </div>
 
-        <!-- Dropzone Box using Native HTML Label for 100% Reliable Mobile/Desktop File Picking -->
-        <label for="fileInput" class="dropzone" id="dropzone">
+        <!-- Upload Dropzone -->
+        <div class="dropzone" id="dropzone">
             <div class="dropzone-icon">📂</div>
-            <h3>Tap here or upload your WhatsApp <code>_chat.txt</code> file</h3>
-            <p>Works seamlessly on iPhone, Android, and desktop browsers.</p>
-            <span class="btn">Select File</span>
+            <h3>Select your WhatsApp chat file</h3>
+            <p>Choose your exported text file (.txt) below to run the private analysis.</p>
             <input type="file" id="fileInput" accept=".txt, .TXT, text/plain, *">
-        </label>
+        </div>
 
         <!-- Configuration & Date Range Section -->
         <div id="config-section">
@@ -553,26 +550,25 @@
         const statsGrid = document.getElementById('stats-grid');
         const dropzone = document.getElementById('dropzone');
 
-        // Prevent default browser file open behavior on drag over window
+        // Prevent browser from opening dropped files in tab
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             window.addEventListener(eventName, (e) => e.preventDefault(), false);
         });
 
         dropzone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            dropzone.classList.add('dragover');
+            dropzone.style.borderColor = '#5eead4';
         });
 
         dropzone.addEventListener('dragleave', () => {
-            dropzone.classList.remove('dragover');
+            dropzone.style.borderColor = 'var(--jade-primary)';
         });
 
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropzone.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files && files.length > 0) {
-                handleFile(files[0]);
+            dropzone.style.borderColor = 'var(--jade-primary)';
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
             }
         });
 
@@ -605,7 +601,7 @@
                 globalVoiceNotes = parsedData.voiceNotes;
 
                 if (globalMessages.length === 0 && globalCalls.length === 0 && globalVoiceNotes.length === 0) {
-                    showError("Could not parse any valid messages, calls, or voice notes. Please verify the file is an exported WhatsApp chat text file.");
+                    showError("Could not parse any valid messages or calls. Please ensure the file is an unedited exported WhatsApp chat text file.");
                     return;
                 }
 
@@ -620,361 +616,4 @@
                     let opt = document.createElement('option');
                     opt.value = s;
                     opt.textContent = s;
-                    if (idx === 0) {
-                        opt.selected = true;
-                    }
-                    userSelect.appendChild(opt);
-                });
-
-                let allDates = [
-                    ...globalMessages.map(m => m.dateObj), 
-                    ...globalCalls.map(c => c.dateObj),
-                    ...globalVoiceNotes.map(v => v.dateObj)
-                ];
-                allDates.sort((a, b) => a - b);
-
-                minFileDate = allDates[0];
-                maxFileDate = allDates[allDates.length - 1];
-
-                startDateInput.min = minFileDate.toISOString().split('T')[0];
-                startDateInput.max = maxFileDate.toISOString().split('T')[0];
-                endDateInput.min = minFileDate.toISOString().split('T')[0];
-                endDateInput.max = maxFileDate.toISOString().split('T')[0];
-
-                setPresetAll();
-                configSection.style.display = 'block';
-                runFilteredAudit();
-            };
-
-            reader.onerror = function() {
-                showError("Error reading file. Please try again.");
-            };
-
-            reader.readAsText(file);
-        }
-
-        function setPresetAll() {
-            if (!minFileDate || !maxFileDate) return;
-            startDateInput.value = minFileDate.toISOString().split('T')[0];
-            endDateInput.value = maxFileDate.toISOString().split('T')[0];
-            runFilteredAudit();
-        }
-
-        function setPresetDays(daysCount) {
-            if (!maxFileDate) return;
-            let start = new Date(maxFileDate);
-            start.setDate(start.getDate() - daysCount);
-            if (start < minFileDate) start = new Date(minFileDate);
-
-            startDateInput.value = start.toISOString().split('T')[0];
-            endDateInput.value = maxFileDate.toISOString().split('T')[0];
-            runFilteredAudit();
-        }
-
-        function parseWhatsAppChat(fileContent) {
-            const linePatterns = [
-                /^\[(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2}(?:\:\d{2})?)\]\s+([^:]+):\s+([\s\S]*)$/,
-                /^\[(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\:\d{2})?(?:\s?[APap][Mm])?)\]\s+([^:]+):\s+([\s\S]*)$/,
-                /^(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4},\s+\d{1,2}:\d{2}(?:\s?[APap][Mm])?)\s+-\s+([^:]+):\s+([\s\S]*)$/,
-                /^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2},\s+\d{1,2}:\d{2})\s+-\s+([^:]+):\s+([\s\S]*)$/
-            ];
-
-            const lines = fileContent.split('\n');
-            let messages = [];
-            let calls = [];
-            let voiceNotes = [];
-            let currentMessage = null;
-
-            lines.forEach(line => {
-                let matchedLine = false;
-
-                for (let pattern of linePatterns) {
-                    const match = line.match(pattern);
-                    if (match) {
-                        if (currentMessage) {
-                            messages.push(currentMessage);
-                            currentMessage = null;
-                        }
-
-                        let timestamp = match[1].trim();
-                        let sender = match[2].trim();
-                        let rawText = match[3].trim();
-                        
-                        let textClean = rawText.replace(/[\u200E\u200F\u202A-\u202E\u00A0]/g, '').trim();
-                        let textLower = textClean.toLowerCase();
-
-                        let isVoiceNote = textLower.includes('audio') || 
-                                          textLower.includes('oudio') || 
-                                          textLower.includes('ptt') || 
-                                          textLower.includes('stemboodskap') || 
-                                          textLower.includes('voice note') ||
-                                          textLower.includes('stem') ||
-                                          textLower.includes('.opus') ||
-                                          textLower.includes('.m4a') ||
-                                          textLower.includes('.aac');
-
-                        let isCall = !isVoiceNote && (
-                                     textLower.includes('call') || textLower.includes('oproep') || 
-                                     textLower.includes('min') || textLower.includes('sec') || 
-                                     textLower.includes('duur') || textLower.includes('missed') || 
-                                     textLower.includes('gemiste') || textLower.includes('no answer') || 
-                                     textLower.includes('geen antwoord'));
-
-                        if (isVoiceNote) {
-                            voiceNotes.push({
-                                rawTimestamp: timestamp,
-                                dateObj: parseTimestamp(timestamp),
-                                sender: sender,
-                                text: textClean
-                            });
-                        } else if (isCall) {
-                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste') || textLower.includes('no answer') || textLower.includes('geen antwoord');
-                            calls.push({
-                                rawTimestamp: timestamp,
-                                dateObj: parseTimestamp(timestamp),
-                                caller: sender,
-                                text: textClean,
-                                missed: isMissed
-                            });
-                        } else {
-                            currentMessage = {
-                                rawTimestamp: timestamp,
-                                dateObj: parseTimestamp(timestamp),
-                                sender: sender,
-                                text: textClean
-                            };
-                        }
-                        matchedLine = true;
-                        break;
-                    }
-                }
-
-                if (!matchedLine && currentMessage) {
-                    currentMessage.text += '\n' + line;
-                }
-            });
-
-            if (currentMessage) {
-                messages.push(currentMessage);
-            }
-
-            return { messages, calls, voiceNotes };
-        }
-
-        function parseTimestamp(tsStr) {
-            let clean = tsStr.replace('[', '').replace(']', '');
-            let d = new Date(clean);
-            if (!isNaN(d)) return d;
-
-            let parts = clean.split(/[\/\-\,\s\:]+/);
-            if (parts.length >= 5) {
-                if (parts[0].length === 4) {
-                    return new Date(parts[0], parts[1] - 1, parts[2], parts[3], parts[4], parts[5] || 0);
-                } else {
-                    return new Date(parts[2], parts[1] - 1, parts[0], parts[3], parts[4], parts[5] || 0);
-                }
-            }
-            return new Date();
-        }
-
-        function runFilteredAudit() {
-            const startLimit = new Date(startDateInput.value);
-            startLimit.setHours(0, 0, 0, 0);
-
-            const endLimit = new Date(endDateInput.value);
-            endLimit.setHours(23, 59, 59, 999);
-
-            const filteredMessages = globalMessages.filter(m => m.dateObj >= startLimit && m.dateObj <= endLimit);
-            const filteredCalls = globalCalls.filter(c => c.dateObj >= startLimit && c.dateObj <= endLimit);
-            const filteredVoiceNotes = globalVoiceNotes.filter(v => v.dateObj >= startLimit && v.dateObj <= endLimit);
-
-            runAuditAnalytics(filteredMessages, filteredCalls, filteredVoiceNotes);
-        }
-
-        function runAuditAnalytics(messages, calls, voiceNotes) {
-            resultsContainer.style.display = 'block';
-            const currentUser = userSelect.value;
-
-            const senders = {};
-            messages.forEach(msg => {
-                senders[msg.sender] = (senders[msg.sender] || 0) + 1;
-            });
-
-            calls.forEach(c => {
-                if (!senders[c.caller]) senders[c.caller] = 0;
-            });
-            voiceNotes.forEach(v => {
-                if (!senders[v.sender]) senders[v.sender] = 0;
-            });
-
-            const senderKeys = Object.keys(senders);
-            const totalMessages = messages.length;
-            const totalVoiceNotes = voiceNotes.length;
-            
-            chatOverview.textContent = `Auditing ${totalMessages.toLocaleString()} messages, ${totalVoiceNotes} voice notes, and ${calls.length} calls across ${senderKeys.join(' & ')} within the selected timeframe. (Viewing as: ${currentUser})`;
-
-            let responseTimes = {};
-            let callReturnTimes = {};
-            senderKeys.forEach(s => {
-                responseTimes[s] = [];
-                callReturnTimes[s] = [];
-            });
-
-            let dailyInitiators = {};
-            let lowEffortOpeners = {};
-            let doubleTexts = {};
-            let questionCounts = {};
-            let wordCounts = {};
-            let callStats = {};
-            let voiceNoteCounts = {};
-            let timeWindows = {};
-            let morningFollowUps = {};
-
-            senderKeys.forEach(s => {
-                dailyInitiators[s] = 0;
-                lowEffortOpeners[s] = 0;
-                doubleTexts[s] = 0;
-                questionCounts[s] = 0;
-                wordCounts[s] = [];
-                callStats[s] = { initiated: 0, returned: 0, missed: 0, total: 0 };
-                voiceNoteCounts[s] = 0;
-                timeWindows[s] = { morning: 0, afternoon: 0, evening: 0, lateNight: 0 };
-                morningFollowUps[s] = { openers: 0, carriedAfter: 0 };
-            });
-
-            voiceNotes.forEach(v => {
-                if (voiceNoteCounts[v.sender] !== undefined) {
-                    voiceNoteCounts[v.sender]++;
-                }
-            });
-
-            calls.forEach((c, idx) => {
-                if (!callStats[c.caller]) return;
-
-                if (c.missed) {
-                    callStats[c.caller].missed++;
-                } else {
-                    let isReturned = false;
-                    for (let p = idx - 1; p >= 0; p--) {
-                        let prevCall = calls[p];
-                        let timeDiffMins = (c.dateObj - prevCall.dateObj) / (1000 * 60);
-                        if (timeDiffMins > 1440) break;
-
-                        if (prevCall.caller !== c.caller && prevCall.missed) {
-                            isReturned = true;
-                            callReturnTimes[c.caller].push(timeDiffMins);
-                            break;
-                        }
-                    }
-
-                    if (isReturned) {
-                        callStats[c.caller].returned++;
-                    } else {
-                        callStats[c.caller].initiated++;
-                    }
-                    callStats[c.caller].total++;
-                }
-            });
-
-            let activeDays = new Set();
-            let lastDayStr = "";
-            let weeklyVolume = {};
-            let maxSilentHours = 0;
-            let lastSenderBeforeSilence = "N/A";
-            let breakerOfSilence = "N/A";
-
-            messages.forEach((msg, i) => {
-                let dayStr = msg.dateObj.toISOString().split('T')[0];
-                activeDays.add(dayStr);
-
-                if (dayStr !== lastDayStr) {
-                    dailyInitiators[msg.sender] = (dailyInitiators[msg.sender] || 0) + 1;
-                    lastDayStr = dayStr;
-                }
-
-                let text = msg.text.trim();
-                let words = text.split(/\s+/);
-                wordCounts[msg.sender].push(words.length);
-
-                if (text.includes('?')) {
-                    questionCounts[msg.sender]++;
-                }
-
-                let hour = msg.dateObj.getHours();
-                if (hour >= 6 && hour < 12) timeWindows[msg.sender].morning++;
-                else if (hour >= 12 && hour < 17) timeWindows[msg.sender].afternoon++;
-                else if (hour >= 17 && hour < 22) timeWindows[msg.sender].evening++;
-                else timeWindows[msg.sender].lateNight++;
-
-                if (hour >= 6 && hour < 10 && words.length <= 5) {
-                    lowEffortOpeners[msg.sender]++;
-                    morningFollowUps[msg.sender].openers++;
-
-                    let participantCarried = false;
-                    for (let j = i + 1; j < Math.min(i + 4, messages.length); j++) {
-                        if (messages[j].sender === msg.sender) {
-                            participantCarried = true;
-                        }
-                    }
-                    if (participantCarried) {
-                        morningFollowUps[msg.sender].carriedAfter++;
-                    }
-                }
-
-                if (i > 0) {
-                    let prev = messages[i - 1];
-                    let diffHours = (msg.dateObj - prev.dateObj) / (1000 * 60 * 60);
-                    if (diffHours > maxSilentHours) {
-                        maxSilentHours = diffHours;
-                        lastSenderBeforeSilence = prev.sender;
-                        breakerOfSilence = msg.sender;
-                    }
-
-                    if (msg.sender === prev.sender) {
-                        doubleTexts[msg.sender]++;
-                    } else {
-                        let diffMinutes = diffHours * 60;
-                        if (diffMinutes > 0 && diffMinutes < 1440) {
-                            responseTimes[msg.sender].push(diffMinutes);
-                        }
-                    }
-                }
-
-                let year = msg.dateObj.getFullYear();
-                let weekNum = getWeekNumber(msg.dateObj);
-                let weekKey = `${year}-W${weekNum}`;
-                weeklyVolume[weekKey] = (weeklyVolume[weekKey] || 0) + 1;
-            });
-
-            let totalDaysCount = activeDays.size || 1;
-
-            let weeks = Object.keys(weeklyVolume).sort();
-            let peakWeekKey = weeks[0];
-            let maxVol = 0;
-            let shiftWeekKey = null;
-            let maxDrop = 0;
-
-            weeks.forEach((w, i) => {
-                let vol = weeklyVolume[w];
-                if (vol > maxVol) {
-                    maxVol = vol;
-                    peakWeekKey = w;
-                }
-                if (i > 0) {
-                    let prevVol = weeklyVolume[weeks[i - 1]];
-                    let drop = prevVol - vol;
-                    if (drop > maxDrop && prevVol > 30 && (drop / prevVol) > 0.35) {
-                        maxDrop = drop;
-                        shiftWeekKey = w;
-                    }
-                }
-            });
-
-            let peakDateRange = getWeekDateRange(peakWeekKey);
-            let shiftDateRange = shiftWeekKey ? getWeekDateRange(shiftWeekKey) : "Stable / Consistent flow";
-
-            statsGrid.innerHTML = '';
-
-            senderKeys.forEach(sender => {
-                let count = senders[sender] || 0;
-                let pct = totalMessages > 0 ? ((count / totalMessages) * 100).toFixed
+                    if (idx === 0) opt.
