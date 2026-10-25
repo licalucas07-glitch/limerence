@@ -685,19 +685,22 @@
                                           textLower.includes('.opus') ||
                                           textLower.includes('.m4a');
 
-                        // Strict check: Only count official WhatsApp system call log notices, not casual text conversation mentioning "call"
+                        // Strict check: Only count official WhatsApp system call log notices, never ordinary conversation containing the word "call"
                         let isSystemCall = !isVoiceNote && (
                                            textLower.includes('missed voice call') || 
                                            textLower.includes('missed video call') || 
                                            textLower.includes('gemiste oproep') || 
+                                           textLower.includes('gemiste videoproep') ||
                                            textLower.includes('audio call') || 
                                            textLower.includes('video call') ||
-                                           (textLower.includes('call duration') || textLower.includes('duur van oproep')));
+                                           textLower.includes('call duration') || 
+                                           textLower.includes('duur van oproep') ||
+                                           textLower.includes('geen antwoord'));
 
                         if (isVoiceNote) {
                             voiceNotes.push({ rawTimestamp: timestamp, dateObj, sender, text: rawText });
                         } else if (isSystemCall) {
-                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste');
+                            let isMissed = textLower.includes('missed') || textLower.includes('gemiste') || textLower.includes('no answer');
                             calls.push({ rawTimestamp: timestamp, dateObj, caller: sender, text: rawText, missed: isMissed });
                         } else {
                             currentMessage = { rawTimestamp: timestamp, dateObj, sender, text: rawText };
@@ -803,7 +806,10 @@
 
             messages.forEach(msg => {
                 let tLower = msg.text.toLowerCase();
-                if (tLower.includes('this message was deleted') || tLower.includes('you deleted this message') || tLower.includes('hierdie boodskap is uitgevee')) {
+                if (tLower.includes('this message was deleted') || 
+                    tLower.includes('you deleted this message') || 
+                    tLower.includes('hierdie boodskap is uitgevee') ||
+                    tLower.includes('jy het hierdie boodskap uitgevee')) {
                     if (deletedMessageCounts[msg.sender] !== undefined) {
                         deletedMessageCounts[msg.sender]++;
                     }
