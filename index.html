@@ -109,6 +109,7 @@
             position: relative;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
             margin-bottom: 24px;
+            overflow: hidden;
         }
 
         .dropzone:hover, .dropzone.dragover {
@@ -170,7 +171,13 @@
         }
 
         input[type="file"] {
-            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
         }
 
         /* Setup / Config Bar */
@@ -447,7 +454,6 @@
         let maxFileDate = null;
         let detectedSenders = [];
 
-        const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
         const errorBanner = document.getElementById('error-banner');
         const resultsContainer = document.getElementById('results-container');
@@ -459,31 +465,9 @@
         const chatOverview = document.getElementById('chat-overview');
         const statsGrid = document.getElementById('stats-grid');
 
-        // Upgraded File Loader & Dropzone Event Handlers
-        dropzone.addEventListener('click', (e) => {
-            fileInput.click();
-        });
-
+        // Prevent default browser file open behavior on drag over window
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             window.addEventListener(eventName, (e) => e.preventDefault(), false);
-        });
-
-        dropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropzone.classList.add('dragover');
-        });
-
-        dropzone.addEventListener('dragleave', () => {
-            dropzone.classList.remove('dragover');
-        });
-
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropzone.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files && files.length > 0) {
-                handleFile(files[0]);
-            }
         });
 
         fileInput.addEventListener('change', (e) => {
@@ -898,4 +882,120 @@
                 let cMissed = callStats[sender] ? callStats[sender].missed : 0;
 
                 let avgCallReturnMins = callReturnTimes[sender] && callReturnTimes[sender].length > 0
-                    ? Math.round(callReturnTimes[sender].
+                    ? Math.round(callReturnTimes[sender].reduce((a, b) => a + b, 0) / callReturnTimes[sender].length)
+                    : null;
+                let callReturnText = avgCallReturnMins !== null 
+                    ? (avgCallReturnMins < 60 ? `${avgCallReturnMins} mins` : `${(avgCallReturnMins/60).toFixed(1)} hours`)
+                    : "N/A";
+
+                let avgWords = wordCounts[sender].length > 0 
+                    ? Math.round(wordCounts[sender].reduce((a, b) => a + b, 0) / wordCounts[sender].length) 
+                    : 0;
+
+                let avgLatencyMins = responseTimes[sender] && responseTimes[sender].length > 0 
+                    ? Math.round(responseTimes[sender].reduce((a, b) => a + b, 0) / responseTimes[sender].length) 
+                    : 0;
+                let latencyText = avgLatencyMins < 60 ? `${avgLatencyMins} mins` : `${(avgLatencyMins/60).toFixed(1)} hours`;
+
+                let windows = timeWindows[sender];
+                let peakWin = Object.keys(windows).reduce((a, b) => windows[a] > windows[b] ? a : b);
+                let peakWinText = peakWin === 'lateNight' ? 'Late Night (10pm-6am)' : peakWin.charAt(0).toUpperCase() + peakWin.slice(1);
+
+                let openerCount = morningFollowUps[sender].openers;
+                let carriedCount = morningFollowUps[sender].carriedAfter;
+                let carryScore = openerCount > 0 ? Math.round((carriedCount / openerCount) * 100) : 50;
+
+                let patternTag = "Balanced Engagement";
+                if (doubles > count * 0.15 && avgWords > 10) {
+                    patternTag = "Anxious Pattern (Higher double-texting & investment)";
+                } else if (avgLatencyMins > 120 && avgWords <= 6) {
+                    patternTag = "Avoidant Pattern (Delayed, minimal responses)";
+                }
+
+                let displayName = (sender === currentUser) ? `You (${sender})` : sender;
+
+                statsGrid.innerHTML += `
+                    <div class="stat-card">
+                        <h4>Audit Profile (${displayName})</h4>
+                        <div class="stat-value">${count.toLocaleString()} msgs (${pct}%)</div>
+                        <div class="stat-desc" style="margin-top:6px;">
+                            Started day first: <strong>${starts} times (${startPct}%)</strong><br>
+                            Avg Reply Time: <strong>${latencyText}</strong><br>
+                            Avg Message Length: <strong>${avgWords} words</strong><br>
+                            Voice Notes Sent: <strong>${vnCount}</strong><br>
+                            Questions Asked: <strong>${questions}</strong><br>
+                            Double Texts Sent: <strong>${doubles}</strong><br>
+                            Low-Effort Morning Check-ins: <strong>${breadcrumbs}</strong><br>
+                            Topic Carrying Score: <strong>${carryScore}% follow-through</strong><br>
+                            Peak Comm Window: <strong>${peakWinText}</strong><br>
+                            Calls Initiated: <strong>${cInitiated}</strong> (Proactive)<br>
+                            Calls Returned: <strong>${cReturned}</strong> (After missed)<br>
+                            Avg Call Return Speed: <strong>${callReturnText}</strong><br>
+                            Calls Missed by Them (Unanswered): <strong>${cMissed}</strong><br>
+                            <span style="color: var(--jade-primary);">Style Dynamic: ${patternTag}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            let silentStreakDisplay = maxSilentHours < 24 ? `${Math.round(maxSilentHours)} hours` : `${(maxSilentHours/24).toFixed(1)} days`;
+
+            statsGrid.innerHTML += `
+                <div class="stat-card alert">
+                    <h4>Exact Energy Shift Date Range</h4>
+                    <div class="stat-value">${shiftDateRange}</div>
+                    <div class="stat-desc">Pinpoints the exact timeframe engagement and communication momentum sharply declined.</div>
+                </div>
+                <div class="stat-card alert">
+                    <h4>Longest Silent Streak</h4>
+                    <div class="stat-value">${silentStreakDisplay}</div>
+                    <div class="stat-desc">
+                        Maximum gap where chat went dead.<br>
+                        Left hanging by: <strong>${lastSenderBeforeSilence}</strong><br>
+                        Broke the silence: <strong>${breakerOfSilence}</strong>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h4>Peak Energy Date Range</h4>
+                    <div class="stat-value">${peakDateRange}</div>
+                    <div class="stat-desc">Highest activity window recorded at <strong>${maxVol}</strong> messages.</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Timeframe Scope</h4>
+                    <div class="stat-value">${totalDaysCount} Active Days</div>
+                    <div class="stat-desc">Filtered scope covers <strong>${messages.length.toLocaleString()} messages</strong>, <strong>${totalVoiceNotes} voice notes</strong> & <strong>${calls.length} calls</strong>.</div>
+                </div>
+            `;
+        }
+
+        function getWeekNumber(d) {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+            var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+            return weekNo;
+        }
+
+        function getWeekDateRange(weekStr) {
+            if (!weekStr || !weekStr.includes('-W')) return weekStr;
+            let parts = weekStr.split('-W');
+            let year = parseInt(parts[0]);
+            let week = parseInt(parts[1]);
+
+            let simple = new Date(year, 0, 1 + (week - 1) * 7);
+            let dow = simple.getDay();
+            let ISOweekStart = new Date(simple);
+            if (dow <= 4)
+                ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+            else
+                ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+
+            let ISOweekEnd = new Date(ISOweekStart);
+            ISOweekEnd.setDate(ISOweekStart.getDate() + 6);
+
+            const options = { month: 'short', day: 'numeric', year: 'numeric' };
+            return `${ISOweekStart.toLocaleDateString('en-US', options)} – ${ISOweekEnd.toLocaleDateString('en-US', options)}`;
+        }
+    </script>
+</body>
+</html>
