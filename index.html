@@ -16,6 +16,9 @@
     <meta property="og:title" content="unlinked: Limerence | Objective Relationship Audit">
     <meta property="og:description" content="Turn romantic chaos into objective reality. 100% private, zero-server chat history analysis.">
 
+    <!-- JSZip Library for direct .zip file extraction in-browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
     <style>
         :root {
             --bg-dark: #070b14;
@@ -388,13 +391,13 @@
     <div class="container">
         <header>
             <h1>Turn romantic chaos into <span>objective reality.</span></h1>
-            <p>Stop over-analyzing mixed signals. Upload your WhatsApp chat log for a private, zero-server audit of response times, reciprocity, energy shifts, and voice notes.</p>
+            <p>Stop over-analyzing mixed signals. Upload your WhatsApp chat log or <code>.zip</code> export for a private, zero-server audit of response times, reciprocity, energy shifts, and voice notes.</p>
         </header>
 
         <!-- Privacy & Disclaimers Box -->
         <div class="disclaimer-box">
             <h3>🔒 100% Privacy & Zero-Server Guarantee</h3>
-            <p>Your chat logs never leave your device. All parsing and analytics execute locally in your browser's memory. No data, messages, or metadata are ever stored or transmitted externally.</p>
+            <p>Your chat logs and ZIP archives never leave your device. All unpacking, parsing, and analytics execute locally in your browser's memory. No data or metadata are ever stored or transmitted externally.</p>
             <h3 style="margin-top: 10px; color: var(--text-light);">⚖️ Disclaimer & User Discretion</h3>
             <p>This tool provides statistical metadata insights (such as response times and frequency metrics) for informational and self-reflection purposes only. Results should be interpreted at your own discretion.</p>
         </div>
@@ -405,15 +408,15 @@
             <div class="tutorial-grid">
                 <div class="tutorial-step">
                     <h5>📱 iPhone (iOS)</h5>
-                    <p>Open chat &rarr; Tap contact name &rarr; Scroll down &rarr; Tap <strong>Export Chat</strong> &rarr; Select <strong>Without Media</strong> &rarr; Save to Files.</p>
+                    <p>Open chat &rarr; Tap contact name &rarr; Scroll down &rarr; Tap <strong>Export Chat</strong> &rarr; Select <strong>Without Media</strong> (or ZIP) &rarr; Save.</p>
                 </div>
                 <div class="tutorial-step">
                     <h5>🤖 Android</h5>
-                    <p>Open chat &rarr; Tap 3 dots (top right) &rarr; Tap <strong>More</strong> &rarr; Tap <strong>Export chat</strong> &rarr; Select <strong>Without Media</strong> &rarr; Save/Share file.</p>
+                    <p>Open chat &rarr; Tap 3 dots &rarr; More &rarr; <strong>Export chat</strong> &rarr; Choose With or Without Media (`.zip`) &rarr; Save file.</p>
                 </div>
                 <div class="tutorial-step">
                     <h5>💻 Desktop (PC / Mac)</h5>
-                    <p>Open WhatsApp Desktop / Web &rarr; Open chat &rarr; Click contact name at top &rarr; Scroll down &rarr; Click <strong>Export chat</strong> &rarr; Save `.txt` file.</p>
+                    <p>Open WhatsApp &rarr; Open chat &rarr; Click contact name &rarr; Click <strong>Export chat</strong> &rarr; Upload the `.zip` or `.txt` directly here.</p>
                 </div>
             </div>
         </div>
@@ -421,10 +424,10 @@
         <!-- Styled Dropzone Box -->
         <div class="dropzone" id="dropzone">
             <div class="dropzone-icon">📂</div>
-            <h3>Drag and drop or tap here to upload your <code>_chat.txt</code> file</h3>
-            <p>Works seamlessly on iPhone, Android, and desktop browsers.</p>
+            <h3>Drag and drop or tap here to upload your <code>_chat.txt</code> or <code>.zip</code> file</h3>
+            <p>Supports raw text files and direct WhatsApp ZIP archives.</p>
             <button class="btn" id="selectBtn" type="button">Select File</button>
-            <input type="file" id="fileInput" accept=".txt, .TXT, text/plain, *">
+            <input type="file" id="fileInput" accept=".txt, .TXT, .zip, .ZIP, text/plain, application/zip, application/x-zip-compressed">
         </div>
 
         <!-- Configuration & Date Range Section -->
@@ -549,13 +552,13 @@
             e.preventDefault();
             dropzone.classList.remove('dragover');
             if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                handleFile(e.dataTransfer.files[0]);
+                handleUploadedFile(e.dataTransfer.files[0]);
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             if (e.target.files && e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
+                handleUploadedFile(e.target.files[0]);
             }
         });
 
@@ -570,68 +573,96 @@
             configSection.style.display = 'none';
         }
 
-        function handleFile(file) {
+        function handleUploadedFile(file) {
             errorBanner.style.display = 'none';
-            const reader = new FileReader();
+            let fileName = file.name.toLowerCase();
 
-            reader.onload = function(e) {
-                const content = e.target.result;
-                const parsedData = parseWhatsAppChat(content);
-                globalMessages = parsedData.messages;
-                globalCalls = parsedData.calls;
-                globalVoiceNotes = parsedData.voiceNotes;
+            if (fileName.endsWith('.zip')) {
+                // Handle ZIP archives using JSZip
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    JSZip.loadAsync(e.target.result).then(zip => {
+                        // Find the chat text file inside the zip archive
+                        let chatFileKey = Object.keys(zip.files).find(filename => 
+                            filename.toLowerCase().includes('_chat.txt') || filename.toLowerCase().endsWith('.txt')
+                        );
 
-                if (globalMessages.length === 0 && globalCalls.length === 0 && globalVoiceNotes.length === 0) {
-                    showError("Could not parse any valid messages or calls. Please ensure the file is an unedited exported WhatsApp chat text file.");
-                    return;
-                }
+                        if (!chatFileKey) {
+                            showError("Could not find a valid '_chat.txt' file inside the uploaded ZIP archive.");
+                            return;
+                        }
 
-                let sendersSet = new Set();
-                globalMessages.forEach(m => sendersSet.add(m.sender));
-                globalCalls.forEach(c => sendersSet.add(c.caller));
-                globalVoiceNotes.forEach(v => sendersSet.add(v.sender));
-                detectedSenders = Array.from(sendersSet);
+                        zip.files[chatFileKey].async('string').then(content => {
+                            processChatContent(content);
+                        });
+                    }).catch(err => {
+                        showError("Could not read ZIP archive. Please ensure it is a valid WhatsApp export ZIP.");
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                // Handle direct text files (.txt)
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    processChatContent(e.target.result);
+                };
+                reader.onerror = function() {
+                    showError("Error reading file. Please try again.");
+                };
+                reader.readAsText(file);
+            }
+        }
 
-                userSelect.innerHTML = '';
-                detectedSenders.forEach((s, idx) => {
-                    let opt = document.createElement('option');
-                    opt.value = s;
-                    opt.textContent = s;
-                    if (idx === 0) opt.selected = true;
-                    userSelect.appendChild(opt);
-                });
+        function processChatContent(content) {
+            const parsedData = parseWhatsAppChat(content);
+            globalMessages = parsedData.messages;
+            globalCalls = parsedData.calls;
+            globalVoiceNotes = parsedData.voiceNotes;
 
-                let allDates = [
-                    ...globalMessages.map(m => m.dateObj), 
-                    ...globalCalls.map(c => c.dateObj),
-                    ...globalVoiceNotes.map(v => v.dateObj)
-                ].filter(d => d && !isNaN(d));
+            if (globalMessages.length === 0 && globalCalls.length === 0 && globalVoiceNotes.length === 0) {
+                showError("Could not parse any valid messages or calls. Please ensure the file is an unedited exported WhatsApp chat text file.");
+                return;
+            }
 
-                if (allDates.length === 0) {
-                    showError("Could not extract valid timestamps from the chat file.");
-                    return;
-                }
+            let sendersSet = new Set();
+            globalMessages.forEach(m => sendersSet.add(m.sender));
+            globalCalls.forEach(c => sendersSet.add(c.caller));
+            globalVoiceNotes.forEach(v => sendersSet.add(v.sender));
+            detectedSenders = Array.from(sendersSet);
 
-                allDates.sort((a, b) => a - b);
+            userSelect.innerHTML = '';
+            detectedSenders.forEach((s, idx) => {
+                let opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                if (idx === 0) opt.selected = true;
+                userSelect.appendChild(opt);
+            });
 
-                minFileDate = allDates[0];
-                maxFileDate = allDates[allDates.length - 1];
+            let allDates = [
+                ...globalMessages.map(m => m.dateObj), 
+                ...globalCalls.map(c => c.dateObj),
+                ...globalVoiceNotes.map(v => v.dateObj)
+            ].filter(d => d && !isNaN(d));
 
-                startDateInput.min = minFileDate.toISOString().split('T')[0];
-                startDateInput.max = maxFileDate.toISOString().split('T')[0];
-                endDateInput.min = minFileDate.toISOString().split('T')[0];
-                endDateInput.max = maxFileDate.toISOString().split('T')[0];
+            if (allDates.length === 0) {
+                showError("Could not extract valid timestamps from the chat file.");
+                return;
+            }
 
-                setPresetAll();
-                configSection.style.display = 'block';
-                runFilteredAudit();
-            };
+            allDates.sort((a, b) => a - b);
 
-            reader.onerror = function() {
-                showError("Error reading file. Please try again.");
-            };
+            minFileDate = allDates[0];
+            maxFileDate = allDates[allDates.length - 1];
 
-            reader.readAsText(file);
+            startDateInput.min = minFileDate.toISOString().split('T')[0];
+            startDateInput.max = maxFileDate.toISOString().split('T')[0];
+            endDateInput.min = minFileDate.toISOString().split('T')[0];
+            endDateInput.max = maxFileDate.toISOString().split('T')[0];
+
+            setPresetAll();
+            configSection.style.display = 'block';
+            runFilteredAudit();
         }
 
         function setPresetAll() {
@@ -689,7 +720,6 @@
                                       textLower.includes('.opus') ||
                                       textLower.includes('.m4a');
 
-                    // Structural / precise call check to avoid grabbing normal sentences while ensuring valid calls are caught
                     let isCall = (
                         textLower === 'missed voice call' || 
                         textLower === 'missed video call' || 
