@@ -185,6 +185,8 @@
             display: inline-block;
             transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
             box-shadow: 0 4px 12px var(--jade-glow);
+            position: relative;
+            z-index: 5;
         }
 
         .btn:hover {
@@ -210,14 +212,7 @@
         }
 
         input[type="file"] {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            cursor: pointer;
-            z-index: 10;
+            display: none;
         }
 
         /* Config Section */
@@ -428,7 +423,7 @@
             <div class="dropzone-icon">📂</div>
             <h3>Drag and drop or tap here to upload your <code>_chat.txt</code> file</h3>
             <p>Works seamlessly on iPhone, Android, and desktop browsers.</p>
-            <button class="btn" type="button">Select File</button>
+            <button class="btn" id="selectBtn" type="button">Select File</button>
             <input type="file" id="fileInput" accept=".txt, .TXT, text/plain, *">
         </div>
 
@@ -514,6 +509,7 @@
         let detectedSenders = [];
 
         const fileInput = document.getElementById('fileInput');
+        const selectBtn = document.getElementById('selectBtn');
         const errorBanner = document.getElementById('error-banner');
         const resultsContainer = document.getElementById('results-container');
         const configSection = document.getElementById('config-section');
@@ -524,6 +520,16 @@
         const chatOverview = document.getElementById('chat-overview');
         const statsGrid = document.getElementById('stats-grid');
         const dropzone = document.getElementById('dropzone');
+
+        // Robust file input triggers
+        selectBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+
+        dropzone.addEventListener('click', () => {
+            fileInput.click();
+        });
 
         // Prevent browser from opening dropped files in tab
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -683,7 +689,19 @@
                                       textLower.includes('.opus') ||
                                       textLower.includes('.m4a');
 
-                    let isCall = textLower.includes('call') || textLower.includes('oproep') || textLower.includes('gesprek');
+                    // Structural / precise call check to avoid grabbing normal sentences while ensuring valid calls are caught
+                    let isCall = (
+                        textLower === 'missed voice call' || 
+                        textLower === 'missed video call' || 
+                        textLower === 'gemiste oproep' || 
+                        textLower === 'gemiste videoproep' ||
+                        textLower === 'audio call' || 
+                        textLower === 'video call' ||
+                        textLower.startsWith('call duration') || 
+                        textLower.startsWith('duur van oproep') ||
+                        textLower.includes('missed voice call') ||
+                        textLower.includes('missed video call')
+                    );
 
                     if (isVoiceNote) {
                         voiceNotes.push({ rawTimestamp: timestamp, dateObj, sender, text: rawText });
@@ -713,7 +731,18 @@
                         let textLower = rawText.toLowerCase();
                         let dateObj = parseTimestamp(timestamp);
 
-                        let isSystemCall = textLower.includes('call') || textLower.includes('oproep') || textLower.includes('gesprek');
+                        let isSystemCall = (
+                            textLower === 'missed voice call' || 
+                            textLower === 'missed video call' || 
+                            textLower === 'gemiste oproep' || 
+                            textLower === 'gemiste videoproep' ||
+                            textLower === 'audio call' || 
+                            textLower === 'video call' ||
+                            textLower.startsWith('call duration') || 
+                            textLower.startsWith('duur van oproep') ||
+                            textLower.includes('missed voice call') ||
+                            textLower.includes('missed video call')
+                        );
 
                         if (isSystemCall) {
                             let isMissed = textLower.includes('missed') || textLower.includes('gemiste') || textLower.includes('no answer') || textLower.includes('geen antwoord');
